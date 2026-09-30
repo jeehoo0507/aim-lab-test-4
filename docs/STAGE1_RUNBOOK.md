@@ -199,14 +199,21 @@ Python은 `uv python install 3.11 --no-bin`, 의존성은 기존 lockfile로 `uv
 
 프로세스를 종료한 뒤 새 클론 폴더를 삭제하면 이번 작업에서 준비한 데이터·가중치·환경·캐시·결과가 함께 제거된다. 기존 시스템 uv와 클론 밖의 파일은 삭제 대상이 아니다.
 
-## 결과 업로드
+## 결과 보고서를 GitHub에 올리기
 
-코드·설정·문서는 `aim-lab-test-4`의 `stage1-ls-gate`에 둔다. 서버에서 새로 생성한 실험 산출물은 다음 범위만 올린다.
+학습이 끝났거나 `STOP_SEED0`로 종료됐다면 아래 전체를 실행한다. 현재 `tail -f` 화면은 `Ctrl+C`로 빠져나온다. `stage1-summary`는 저장된 결과로 표·곡선·보고용 JSON을 생성하며 학습이나 test 평가를 실행하지 않는다. `STOP.json`은 그대로 보존한다.
+
+현재 tako-server의 `~/Documents/aim-lab-test-4` 기준이다. 다른 위치에 클론했다면 첫 줄의 경로를 바꾼다. 서버 GitHub 인증과 Git 작성자 정보가 설정되어 있어야 한다.
 
 ```bash
-git add reports/stage1/
-git commit -m "results: report Stage 1 KD gate" -m "Agent: Codex"
-git push origin stage1-ls-gate
+cd ~/Documents/aim-lab-test-4 &&
+bash setup.sh stage1-summary &&
+git add -- reports/stage1/ &&
+git commit --only -m "results: report Stage 1 seed 0 gate" -m "Agent: Codex" -- reports/stage1/ &&
+git pull --rebase origin stage1-ls-gate &&
+git push origin HEAD:stage1-ls-gate
 ```
 
-가중치·데이터·환경·캐시는 `.gitignore` 대상이며 커밋하지 않는다.
+보고서를 먼저 커밋해 보존한 뒤 원격의 README 업데이트 등을 반영하고 push한다. `--only`로 이번 커밋에는 `reports/stage1/`만 포함한다. 데이터·가중치·`outputs/`는 추가하지 않는다. 충돌·인증 오류가 나면 그 단계에서 멈추며 강제 push나 보고서 복원·삭제를 하지 않는다. 오류 출력을 공유한다.
+
+업로드 후 [GitHub SUMMARY](https://github.com/jeehoo0507/aim-lab-test-4/blob/stage1-ls-gate/reports/stage1/SUMMARY.md)에서 run별 성능과 CE 대비 차이를 확인할 수 있다.

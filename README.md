@@ -36,6 +36,25 @@ fi
 teacher 2개 병렬 → 출력 점검 → student 5개 병렬 → seed 0 판정·SUMMARY 생성까지 수행한다. 통과하면 `SEED0_DONE: RUN_SEED1, selected=T1` 또는 `selected=T4`를 출력하고 정상 종료한다. seed 1은 시작하지 않는다. 실패 판정은 기존대로 `STOP.json`에 기록한다.
 
 
+## 결과 보고서를 GitHub에 올리기
+
+학습이 끝났거나 `STOP_SEED0`로 종료됐다면 아래 전체를 실행한다. 현재 `tail -f` 화면은 `Ctrl+C`로 빠져나온다. `stage1-summary`는 저장된 결과로 표·곡선·보고용 JSON을 생성하며 학습이나 test 평가를 실행하지 않는다. `STOP.json`은 그대로 보존한다.
+
+현재 tako-server의 `~/Documents/aim-lab-test-4` 기준이다. 다른 위치에 클론했다면 첫 줄의 경로를 바꾼다. 서버 GitHub 인증과 Git 작성자 정보가 설정되어 있어야 한다.
+
+```bash
+cd ~/Documents/aim-lab-test-4 &&
+bash setup.sh stage1-summary &&
+git add -- reports/stage1/ &&
+git commit --only -m "results: report Stage 1 seed 0 gate" -m "Agent: Codex" -- reports/stage1/ &&
+git pull --rebase origin stage1-ls-gate &&
+git push origin HEAD:stage1-ls-gate
+```
+
+보고서를 먼저 커밋해 보존한 뒤 원격의 README 업데이트 등을 반영하고 push한다. `--only`로 이번 커밋에는 `reports/stage1/`만 포함한다. 데이터·가중치·`outputs/`는 추가하지 않는다. 충돌·인증 오류가 나면 그 단계에서 멈추며 강제 push나 보고서 복원·삭제를 하지 않는다. 오류 출력을 공유한다.
+
+업로드 후 [GitHub SUMMARY](https://github.com/jeehoo0507/aim-lab-test-4/blob/stage1-ls-gate/reports/stage1/SUMMARY.md)에서 run별 성능과 CE 대비 차이를 확인할 수 있다.
+
 ### teacher 학습 진행 로그 확인
 
 초기 가중치 다운로드가 100%에서 멈춘 것처럼 보여도 launcher 로그에는 에포치별 진행이 나오지 않는다. teacher 진행은 별도 로그에 기록된다. 현재 `tail -f` 화면에서 `Ctrl+C`로 로그 보기만 끝낸 뒤 아래를 실행한다. 백그라운드 학습은 계속되므로 학습 명령을 다시 실행하지 않는다.
