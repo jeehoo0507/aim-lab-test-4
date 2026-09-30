@@ -1,9 +1,25 @@
 # AIM Lab 실험 3 · Stage 1 — KD 게이트
 
+## 먼저 seed 0까지만 실행
+
+서버에서 이 저장소의 클론 폴더로 이동한 뒤 실행한다. 테스트가 통과해야 학습이 시작된다.
+
+```bash
+bash setup.sh stage1-test && bash setup.sh stage1-run --jobs 5 --stop-after-seed0
+```
+
+teacher 2개 병렬 → 출력 점검 → student 5개 병렬 → seed 0 판정·SUMMARY 생성까지 수행한다. 통과하면 `SEED0_DONE: RUN_SEED1, selected=T1` 또는 `selected=T4`를 출력하고 정상 종료한다. seed 1은 시작하지 않는다. 실패 판정은 기존대로 `STOP.json`에 기록한다.
+
+나중에 seed 1까지 이어서 진행하려면 다음을 실행한다. 완료한 seed 0 run은 재사용한다.
+
+```bash
+bash setup.sh stage1-run --jobs 5
+```
+
 이 브랜치는 `aim-lab-test-2`의 `8ebf7af`를 기준으로 한 COCO-10 teacher LS 제거 실험이다.
 [고정 프로토콜](docs/STAGE1_PROTOCOL.md) · [확정 답변](QUESTIONS.md) · [A5000 서버 실행 안내](docs/STAGE1_RUNBOOK.md) · [설정 감사](reports/stage1/CONFIG_AUDIT.md) · [실행 상태/결과](reports/stage1/SUMMARY.md)
 
-Stage 1은 `bash setup.sh stage1-test` 통과 후 `bash setup.sh stage1-run --jobs 5`로 실행한다. teacher 두 개 병렬 → 출력 점검 → student 다섯 개 병렬 → 게이트 통과 시 seed 1 확인 순서다. 실제 test는 평가하지 않는다. uv 설치물과 캐시는 모두 이 클론 안에 저장한다.
+실제 test는 평가하지 않는다. uv 설치물과 캐시는 모두 이 클론 안에 저장한다.
 
 아래는 기준 코드의 실험 2 안내다. 이번 Stage 1 실행에는 위의 전용 실행 안내를 사용한다.
 
