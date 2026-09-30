@@ -2,10 +2,15 @@
 
 ## 먼저 seed 0까지만 실행
 
-서버에서 이 저장소의 클론 폴더로 이동한 뒤 실행한다. 테스트가 통과해야 학습이 시작된다.
+서버에서 새 폴더에 클론하는 것부터 seed 0 실행까지의 전체 명령이다. 기존 `uv`가 PATH에 있어야 한다. 각 단계가 성공해야 다음 단계가 실행된다.
 
 ```bash
-bash setup.sh stage1-test && bash setup.sh stage1-run --jobs 5 --stop-after-seed0
+git clone --branch stage1-ls-gate https://github.com/jeehoo0507/aim-lab-test-4.git aim-lab-test-4 &&
+cd aim-lab-test-4 &&
+bash setup.sh install &&
+bash setup.sh stage1-test &&
+bash setup.sh stage1-plan &&
+bash setup.sh stage1-run --jobs 5 --stop-after-seed0
 ```
 
 teacher 2개 병렬 → 출력 점검 → student 5개 병렬 → seed 0 판정·SUMMARY 생성까지 수행한다. 통과하면 `SEED0_DONE: RUN_SEED1, selected=T1` 또는 `selected=T4`를 출력하고 정상 종료한다. seed 1은 시작하지 않는다. 실패 판정은 기존대로 `STOP.json`에 기록한다.
