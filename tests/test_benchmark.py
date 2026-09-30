@@ -24,7 +24,7 @@ def trial(factor=1):
 
 
 def test_parallel_recommendation_accounts_for_three_seed_tail_and_contention():
-    cfg = Config()
+    cfg = Config(teacher_label_smoothing=0.1)
     two = trial(1.2)
     two["jobs"] = 2
     fast = recommend(trial(), [two], cfg, 6000)
@@ -49,7 +49,7 @@ def test_parallel_recommendation_accounts_for_three_seed_tail_and_contention():
 
 
 def test_storage_estimate_includes_resume_teacher_and_midpoint():
-    result = checkpoint_estimate(Config(), 5526346, 21669514)
+    result = checkpoint_estimate(Config(teacher_label_smoothing=0.1), 5526346, 21669514)
     expected = (5526346 * 4 * 3 * 42 + 21669514 * 4 * 2 * 3 + 5526346 * 4 * 4 * 6)
     assert result["total_decimal_gb"] == pytest.approx(expected / 1e9)
     assert result["within_target"]
@@ -57,7 +57,7 @@ def test_storage_estimate_includes_resume_teacher_and_midpoint():
 
 def test_real_spawned_single_and_dual_benchmark_and_auto_guards(tmp_path):
     synthetic_data(tmp_path / "data")
-    cfg = Config.load(data_root=str(tmp_path / "data"), output_root=str(tmp_path / "out"),
+    cfg = Config.load(teacher_label_smoothing=0.1, data_root=str(tmp_path / "data"), output_root=str(tmp_path / "out"),
                       num_classes=2, device="cpu", model_scale="debug", student_init="scratch",
                       teacher_pretrained=False, num_workers=2, batch_size=2, eval_batch_size=2,
                       accumulation_steps=2, epochs=2, teacher_epochs=2, diagnostic_repeats=1,

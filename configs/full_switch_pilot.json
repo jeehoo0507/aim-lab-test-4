@@ -15,5 +15,6 @@
   "checkpoint_target_gb": 5.0,
   "output_warning_gb": 10.0,
   "diagnostic_epochs": [0, 10, 25, 50, 75, 100],
-  "diagnostic_repeats": 5
+  "diagnostic_repeats": 5,
+  "teacher_label_smoothing": 0.1
 }

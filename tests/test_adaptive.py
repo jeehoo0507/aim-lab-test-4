@@ -30,7 +30,7 @@ def test_paired_policy_only_changes_outgoing_selection():
 
 
 def test_gate_requires_two_successive_eligible_checks():
-    cfg = Config(gate_min_epoch=30)
+    cfg = Config(teacher_label_smoothing=0.1, gate_min_epoch=30)
     state = {"favorable_streak": 0, "switched_after_epoch": None}
     for epoch, favorable in ((20, True), (30, True), (40, False), (50, True), (60, True)):
         state = update_gate(state, {"epoch": epoch, "favorable": favorable}, cfg)
@@ -47,7 +47,7 @@ def test_adaptive_resume_and_validation_probe_separation(tmp_path, method):
         if row["split"] == "val" and row["id"] % 2 == 0:
             row["probe"] = False
     write_json(root / "manifest.json", manifest)
-    cfg = Config.load(data_root=str(root), output_root=str(tmp_path / "full"), num_classes=2,
+    cfg = Config.load(teacher_label_smoothing=0.1, data_root=str(root), output_root=str(tmp_path / "full"), num_classes=2,
                       device="cpu", model_scale="debug", student_init="scratch", teacher_pretrained=False,
                       num_workers=0, batch_size=2, eval_batch_size=2, accumulation_steps=2,
                       teacher_epochs=2, epochs=3, warmup_epochs=0, diagnostic_epochs=[0, 3],
@@ -77,7 +77,7 @@ def test_adaptive_resume_and_validation_probe_separation(tmp_path, method):
 def test_training_switch_starts_after_second_favorable_probe(tmp_path, monkeypatch):
     root = tmp_path / "data"
     synthetic_data(root)
-    cfg = Config.load(data_root=str(root), output_root=str(tmp_path / "out"), num_classes=2,
+    cfg = Config.load(teacher_label_smoothing=0.1, data_root=str(root), output_root=str(tmp_path / "out"), num_classes=2,
                       device="cpu", model_scale="debug", student_init="scratch", teacher_pretrained=False,
                       num_workers=0, batch_size=2, eval_batch_size=2, accumulation_steps=2,
                       teacher_epochs=1, epochs=3, warmup_epochs=0, diagnostic_epochs=[0, 3],

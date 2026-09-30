@@ -14,7 +14,7 @@ from coco_kd.utils import load_checkpoint
 
 def config(tmp_path):
     synthetic_data(tmp_path / "data")
-    return Config.load(data_root=str(tmp_path / "data"), output_root=str(tmp_path / "out"),
+    return Config.load(teacher_label_smoothing=0.1, data_root=str(tmp_path / "data"), output_root=str(tmp_path / "out"),
                        num_classes=2, device="cpu", model_scale="debug", student_init="scratch",
                        teacher_pretrained=False, num_workers=0, batch_size=2, eval_batch_size=2,
                        accumulation_steps=2, teacher_epochs=2, epochs=3, diagnostic_repeats=1,
@@ -22,7 +22,7 @@ def config(tmp_path):
 
 
 def test_actual_learning_rate_has_no_hidden_scaling():
-    cfg = Config()
+    cfg = Config(teacher_label_smoothing=0.1)
     assert learning_rate(cfg, 5, 100, "student") == pytest.approx(5e-5)
     assert learning_rate(replace(cfg, student_init="scratch"), 5, 100, "student") == pytest.approx(5e-4)
 

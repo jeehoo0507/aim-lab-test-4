@@ -15,6 +15,7 @@ CLASSES = ("giraffe", "airplane", "clock", "zebra", "train", "bird",
 
 @dataclass
 class Config:
+    teacher_label_smoothing: float
     data_root: str = "data/coco_single"
     output_root: str = "outputs/experiment2"
     device: str = "cuda"
@@ -54,11 +55,20 @@ class Config:
     grad_clip: float = 1.0
     model_scale: str = "deit"
     max_train_batches: int | None = None
+    teacher_checkpoint: str | None = None
+    probe_enabled: bool = True
+    stage1_run: str | None = None
 
     @classmethod
     def load(cls, path=None, **overrides):
         values = json.loads(Path(path).read_text()) if path else {}
+        if path and "teacher_label_smoothing" not in values:
+            raise ValueError("teacher_label_smoothing must be explicit in config JSON")
+        if values.get("stage1_run") and "temperature" not in values:
+            raise ValueError("Stage 1 temperature must be explicit in config JSON")
         values.update({k: v for k, v in overrides.items() if v is not None})
+        if "teacher_label_smoothing" not in values:
+            raise ValueError("teacher_label_smoothing is required; no default")
         unknown = set(values) - {f.name for f in fields(cls)}
         if unknown:
             raise ValueError(f"Unknown config keys: {sorted(unknown)}")
@@ -78,7 +88,7 @@ class Config:
             raise ValueError("Invalid initialization/model scale")
         if not 0 < cfg.foreground_threshold <= 1 or not 0 <= cfg.kd_alpha <= 1 or cfg.temperature <= 0:
             raise ValueError("Invalid masking/KD parameters")
-        if not 0 <= cfg.label_smoothing < 1 or not 0 <= cfg.drop_path < 1:
+        if not 0 <= cfg.label_smoothing < 1 or not 0 <= cfg.teacher_label_smoothing < 1 or not 0 <= cfg.drop_path < 1:
             raise ValueError("Invalid smoothing/drop path")
         if min(cfg.scratch_lr, cfg.pretrained_lr, cfg.teacher_lr, cfg.grad_clip) <= 0 or cfg.min_lr < 0 or cfg.weight_decay < 0:
             raise ValueError("Invalid optimization parameters")

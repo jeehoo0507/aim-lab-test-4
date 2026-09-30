@@ -39,12 +39,12 @@ def test_schedule_budget_and_endpoints():
     with pytest.raises(ValueError, match="epoch"):
         select_tokens(a, "random_anneal_10")
     with pytest.raises(ValueError, match="100-epoch"):
-        train(Config(epochs=50), method="random_anneal_10")
+        train(Config(teacher_label_smoothing=0.1, epochs=50), method="random_anneal_10")
 
 
 def debug_config(tmp_path):
     synthetic_data(tmp_path / "data")
-    return Config.load(data_root=str(tmp_path / "data"), output_root=str(tmp_path / "original"),
+    return Config.load(teacher_label_smoothing=0.1, data_root=str(tmp_path / "data"), output_root=str(tmp_path / "original"),
                        device="cpu", model_scale="debug", num_classes=2, teacher_pretrained=False,
                        student_init="scratch", num_workers=0, num_threads=2, batch_size=2, eval_batch_size=2,
                        accumulation_steps=2, teacher_epochs=1, epochs=2, warmup_epochs=0,

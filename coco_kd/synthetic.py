@@ -43,7 +43,7 @@ def smoke(root, device="cpu"):
     root = Path(root) / source_fingerprint()[:12]
     synthetic_data(root / "data")
     validate_manifest(root / "data")
-    cfg = Config.load(data_root=str(root / "data"), output_root=str(root / "outputs"), device=device,
+    cfg = Config.load(teacher_label_smoothing=0.1, data_root=str(root / "data"), output_root=str(root / "outputs"), device=device,
                       num_classes=2, batch_size=2, eval_batch_size=2, accumulation_steps=2, num_workers=0,
                       num_threads=2, epochs=2, teacher_epochs=2, warmup_epochs=0, checkpoint_every=1,
                       student_init="scratch", teacher_pretrained=False, model_scale="debug",

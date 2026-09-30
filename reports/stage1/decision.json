@@ -1,0 +1,46 @@
+{
+  "decision": "WAIT_SEED0",
+  "selected": null,
+  "rules": [
+    {
+      "rule": "local/server test suite (current source)",
+      "status": "PASS"
+    },
+    {
+      "rule": "R1_ce: regression ±2.0 pp",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "R1_ce: initial checksum",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "R2_full_old_T1: regression ±2.0 pp",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "R2_full_old_T1: initial checksum",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "seed 0 T_LS0: train KL gate",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "seed 0 T_LS01: train KL gate",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "seed 1 T_LS0: train KL gate",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "manifest_sha256",
+      "status": "NOT_RUN"
+    },
+    {
+      "rule": "old_teacher_sha256",
+      "status": "NOT_RUN"
+    }
+  ]
+}

@@ -44,7 +44,7 @@ def make_run(root, cfg, seed, initialization, method, complete=True):
 def test_interim_reads_only_completed_probes_and_keeps_sources_unchanged(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     root = tmp_path / "outputs"
-    cfg = Config(output_root=str(root), model_scale="debug", epochs=2)
+    cfg = Config(teacher_label_smoothing=0.1, output_root=str(root), model_scale="debug", epochs=2)
     for method in METHODS:
         make_run(root, cfg, 0, "scratch", method)
     make_run(root, cfg, 0, "imagenet", "ce", complete=False)
@@ -78,7 +78,7 @@ def test_interim_reads_only_completed_probes_and_keeps_sources_unchanged(tmp_pat
 def test_interim_with_no_completed_block_and_debug_push_guard(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     root = tmp_path / "outputs"
-    cfg = Config(output_root=str(root), model_scale="debug")
+    cfg = Config(teacher_label_smoothing=0.1, output_root=str(root), model_scale="debug")
     make_run(root, cfg, 0, "scratch", "ce", complete=False)
     destination = export_interim(cfg, seeds=(0,))
     assert not (destination / "analysis").exists()

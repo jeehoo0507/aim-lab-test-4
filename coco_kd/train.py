@@ -23,6 +23,8 @@ from .utils import (RunLock, autocast, compatible_config, cpu_state, load_checkp
 
 def run_path(cfg, role="student", method="student"):
     root = Path(cfg.output_root) / f"seed_{cfg.seed}"
+    if cfg.stage1_run:
+        return root / cfg.stage1_run
     return root / "teacher" if role == "teacher" else root / cfg.student_init / method
 
 
@@ -71,7 +73,7 @@ def evaluate(model, dataset, cfg, device, destination=None):
     return classification(arrays["logits"], arrays["label"], cfg.num_classes)
 
 
-def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method, epoch):
+def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method, epoch, role="student"):
     model.train()
     seed_all(cfg.seed + epoch * 100003)
     mask_rng = torch.Generator(device=device).manual_seed(cfg.seed + epoch * 200003)
@@ -92,7 +94,11 @@ def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method,
                 indices, swaps = select_tokens(attention, method, foreground=foreground, generator=mask_rng, epoch=epoch)
                 with torch.no_grad():
                     targets = teacher(x, indices)
-            loss, ce, kd = distillation_loss(logits, y, targets, cfg)
+            if role == "teacher":
+                loss = F.cross_entropy(logits.float(), y, label_smoothing=cfg.teacher_label_smoothing)
+                ce, kd = loss.detach(), logits.new_zeros(())
+            else:
+                loss, ce, kd = distillation_loss(logits, y, targets, cfg)
         if not torch.isfinite(loss):
             raise FloatingPointError(f"Non-finite loss epoch {epoch}, batch {step}")
         start = step // cfg.accumulation_steps * cfg.accumulation_steps
@@ -130,6 +136,9 @@ def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method,
 def train(cfg, role="student", method="student", stop_after=None):
     if role not in ("teacher", "student") or method not in (*TRAIN_METHODS, "teacher"):
         raise ValueError("Unknown role or method")
+    if cfg.stage1_run:
+        from .stage1 import validate_training_run
+        validate_training_run(cfg, role, method)
     if method == "random_anneal_10" and cfg.model_scale != "debug" and cfg.epochs != 100:
         raise ValueError("random_anneal_10 is a fixed 100-epoch protocol; use a separate design for other lengths")
     directory = run_path(cfg, role, method)
@@ -142,7 +151,7 @@ def _train(cfg, role, method, directory, stop_after):
     device = setup_device(cfg)
     digest = metadata_hash(cfg)
     code_hash = source_fingerprint()
-    teacher_file = run_path(cfg, "teacher") / "best.pt" if role == "student" else None
+    teacher_file = (Path(cfg.teacher_checkpoint) if cfg.teacher_checkpoint else run_path(cfg, "teacher") / "best.pt") if role == "student" and method != "ce" else None
     teacher_hash = sha256(teacher_file) if teacher_file else None
     saved_config = directory / "config.json"
     if saved_config.exists():
@@ -166,6 +175,14 @@ def _train(cfg, role, method, directory, stop_after):
     pretrained = (cfg.teacher_pretrained if role == "teacher" else cfg.student_init == "imagenet") and state is None
     model = build_model(role, cfg, pretrained=pretrained).to(device)
     initial_hash = state["initial_model_sha256"] if state else model_fingerprint(model)
+    write_json(directory / "run_start.json", {"role": role, "method": method,
+               "teacher_checkpoint": str(teacher_file) if teacher_file else None,
+               "teacher_sha256": teacher_hash, "initial_model_sha256": initial_hash,
+               "metadata_sha256": digest, "code_sha256": code_hash})
+    if cfg.stage1_run and cfg.seed == 0 and cfg.stage1_run in ("R1_ce", "R2_full_old_T1"):
+        from .stage1 import INITIAL_SHA256
+        if initial_hash != INITIAL_SHA256:
+            raise ValueError(f"Stage 1 initial_model_sha256 mismatch: {initial_hash}")
     teacher = None
     if teacher_file:
         source = load_checkpoint(teacher_file)
@@ -190,7 +207,7 @@ def _train(cfg, role, method, directory, stop_after):
     validation = CocoSubset(cfg.data_root, "val_fit" if cfg.validation_exclude_probe else "val",
                             threshold=cfg.foreground_threshold)
     epochs = cfg.teacher_epochs if role == "teacher" else cfg.epochs
-    probe = Probe(cfg, directory, teacher, device) if teacher is not None else None
+    probe = Probe(cfg, directory, teacher, device) if teacher is not None and cfg.probe_enabled else None
     gate_probe = GateProbe(cfg, directory, teacher, device) if method in ADAPTIVE_TARGETS else None
     base = {"config": cfg.to_dict(), "role": role, "method": method,
             "metadata_sha256": digest, "teacher_sha256": teacher_hash, "code_sha256": code_hash,
@@ -215,7 +232,7 @@ def _train(cfg, role, method, directory, stop_after):
             group["lr"] = lr
         active_method = (ADAPTIVE_TARGETS[method] if gate_state["switched_after_epoch"] is not None
                          else "random_rescue_10") if gate_probe else method
-        training = train_epoch(model, teacher, train_data, optimizer, scaler, cfg, device, active_method, epoch)
+        training = train_epoch(model, teacher, train_data, optimizer, scaler, cfg, device, active_method, epoch, role=role)
         val = evaluate(model, validation, cfg, device, directory / "validation" / f"epoch_{epoch:03d}.npz")
         if probe:
             probe.log(model, epoch, active_method)
@@ -268,6 +285,8 @@ def _train(cfg, role, method, directory, stop_after):
 
 
 def evaluate_test(cfg, role="student", method="student"):
+    if cfg.stage1_run:
+        raise ValueError("Stage 1 forbids test evaluation")
     directory = run_path(cfg, role, method)
     with RunLock(directory / ".run.lock"):
         result = json.loads((directory / "result.json").read_text())

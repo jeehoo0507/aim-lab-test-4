@@ -1,6 +1,6 @@
 # Stage 1 구현 계획 및 사전 질문
 
-상태: 사용자 답변 대기. 구현, 패키지 설치, 테스트, 학습 및 push는 아직 시작하지 않았다.
+상태: 사용자 Q1–Q6 답변 수신. 로컬 구현·테스트 및 서버 실행 명령 작성이 승인되었다. GPU 실행은 사용자가 수행한다.
 기준 문서: `docs/STAGE1_PROTOCOL.md`에 사용자가 마지막으로 보낸 프로토콜 원문을 보존한다.
 
 ## 이미 확정된 추가 지시와 확인 사항
@@ -12,7 +12,7 @@
 - 호스트는 macOS arm64이며 기존 uv 0.11.24가 있다. 기존 uv 자체는 이번 작업의 설치물이 아니다.
 - 클론에 `data/coco_single/` 및 `outputs/experiment2/`가 없다. 데이터나 가중치를 새로 만들거나 다른 파일로 대체하지 않는다.
 - `pyproject.toml`과 `uv.lock`이 이미 있으며 Python 3.11, torch 2.5.1, torchvision 0.20.1 등이 고정되어 있다.
-- 아래 제안은 답변 전에는 확정된 설정으로 취급하지 않는다.
+- 아래 최초 제안보다 이 문서 마지막의 사용자 확정 답변이 우선한다.
 
 ## 구현 계획 (12줄)
 
@@ -29,7 +29,7 @@
 11. 결과 파일에서만 SUMMARY의 세 표와 다섯 val 곡선을 생성하고 해석은 3줄 이내로 쓴다.
 12. 합의한 범위만 새 저장소에 push하며 모든 커밋에 지정 접두사와 `Agent: Codex` 트레일러를 붙인다.
 
-## 답변이 필요한 사항
+## 최초 질문 (기록 보존)
 
 ### Q1. 새 저장소에 올릴 범위
 
@@ -58,6 +58,16 @@ GPU 실험을 실행할 서버/접속 방법, 준비 COCO-10 디렉터리, 실�
 
 제안: seed 0 후보 차이가 반올림 전 수치로 완전히 같으면 T=1을 선택한다. student는 `--jobs 4`로 실행하고, 기존 병렬 방식대로 DataLoader worker 0 및 프로세스당 thread 2를 사용한다. teacher 두 개는 같은 병렬 실행 방식으로 실행한다. OOM이나 자원 부족 시 자동으로 설정을 낮추지 않고 멈춘다. 이 사전 규칙으로 진행할지 확인해 달라.
 
-## 중단 근거
+## 사용자 확정 답변 (2026-09-30)
 
-사용자 프로토콜 2번: “코드를 쓰기 전에 구현 계획(15줄 이내)과 모호한 점을 `QUESTIONS.md`에 적어 제출하고, 사용자 답을 받은 뒤 시작한다.” 따라서 이 문서 제출 후 답변을 기다린다.
+- Q1: A. 새 저장소에 코드·설정·문서 전체 및 `reports/stage1/`를 올린다. 데이터·가중치는 제외한다.
+- Q2: 로컬 구현·테스트 및 서버 실행 명령까지만 수행한다. A5000 GPU 실행은 사용자가 한다. 기존 서버와 같은 `uv.lock`(torch 2.5.1 cu124)을 유지한다.
+- 서버 데이터: `/home/kebap/Desktop/workspace/34/aim-lab-test-2/data/coco_single`.
+- 서버 기존 teacher: `/home/kebap/Desktop/workspace/34/aim-lab-test-2/outputs/experiment2/seed_0/teacher/best.pt`.
+- 위 자산은 config의 절대경로로 읽기 전용 참조한다. 클론 밖에 있으며 클론 삭제 대상이 아니다.
+- Q3: 제안 승인. KL 판정은 train 전체 1회 평균에만 적용하고 측정 seed는 항상 0이다. val은 보고만 하며 seed 1 teacher에도 같은 기준을 적용한다.
+- Q4: 제안 승인. 감사표의 미사용 필드는 반드시 “미사용”으로 표시한다.
+- Q5: Stage 1 Probe를 끈다. 기존 테스트 assertion을 유지하며 fixture/호출부·실행 config만 최소 수정한다. 과거 보고서는 수정하지 않는다.
+- Q6: 동률이면 T=1. teacher 2개 병렬, student 5개는 `--jobs 5`로 동시에 실행한다. workers 0, threads 2. OOM이면 멈춘다.
+- 추가: T_LS0/T_LS01은 별도 출력 폴더와 epoch 30 `last.pt`를 사용한다. R2만 기존 `best.pt`를 사용한다.
+- 추가: `UV_CACHE_DIR`, `UV_PYTHON_INSTALL_DIR`, `UV_TOOL_DIR`, `TORCH_HOME`, `XDG_CACHE_HOME`, `TMPDIR`를 모두 `setup.sh`에서 클론 내부 경로로 export한다. 셸 설정 파일은 수정하지 않는다.

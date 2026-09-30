@@ -1,3 +1,12 @@
+# AIM Lab 실험 3 · Stage 1 — KD 게이트
+
+이 브랜치는 `aim-lab-test-2`의 `8ebf7af`를 기준으로 한 COCO-10 teacher LS 제거 실험이다.
+[고정 프로토콜](docs/STAGE1_PROTOCOL.md) · [확정 답변](QUESTIONS.md) · [A5000 서버 실행 안내](docs/STAGE1_RUNBOOK.md) · [설정 감사](reports/stage1/CONFIG_AUDIT.md) · [실행 상태/결과](reports/stage1/SUMMARY.md)
+
+Stage 1은 `bash setup.sh stage1-test` 통과 후 `bash setup.sh stage1-run --jobs 5`로 실행한다. teacher 두 개 병렬 → 출력 점검 → student 다섯 개 병렬 → 게이트 통과 시 seed 1 확인 순서다. 실제 test는 평가하지 않는다. uv 설치물과 캐시는 모두 이 클론 안에 저장한다.
+
+아래는 기준 코드의 실험 2 안내다. 이번 Stage 1 실행에는 위의 전용 실행 안내를 사용한다.
+
 # MaskedKD 실험 2 — COCO 자연 이미지 분류
 
 Waterbirds 실험 1과 별도 저장소다. COCO 실험 2의 학습 결과와 후속 비교가 `reports/`에 있다.

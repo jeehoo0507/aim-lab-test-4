@@ -17,5 +17,6 @@
   "validation_exclude_probe": true,
   "gate_interval": 10,
   "gate_min_epoch": 30,
-  "gate_repeats": 3
+  "gate_repeats": 3,
+  "teacher_label_smoothing": 0.1
 }

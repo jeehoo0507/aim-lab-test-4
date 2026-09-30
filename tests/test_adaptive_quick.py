@@ -14,7 +14,7 @@ from scripts.plot_test_attention import active_at_last
 def make_results(tmp_path):
     data = tmp_path / "data"
     synthetic_data(data)
-    cfg = Config.load(data_root=str(data), output_root=str(tmp_path / "quick"), num_classes=2,
+    cfg = Config.load(teacher_label_smoothing=0.1, data_root=str(data), output_root=str(tmp_path / "quick"), num_classes=2,
                       model_scale="debug", epochs=100, seed=0, student_init="scratch")
     original = tmp_path / "original"
     base = {"config": replace(cfg, output_root=str(original)).to_dict(), "last_epoch": 100,

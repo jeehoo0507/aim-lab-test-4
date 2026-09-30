@@ -63,7 +63,7 @@ def test_real_deit_model_dimensions():
     from coco_kd.config import Config
     from coco_kd.models import build_model
     for role, dim, heads in [("student", 192, 3), ("teacher", 384, 6)]:
-        model = build_model(role, Config(), pretrained=False).eval()
+        model = build_model(role, Config(teacher_label_smoothing=0.1), pretrained=False).eval()
         assert len(model.blocks) == 12
         assert model.pos_embed.shape == (1, 197, dim)
         assert model.blocks[0].attn.num_heads == heads
