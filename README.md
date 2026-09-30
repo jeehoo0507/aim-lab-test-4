@@ -46,7 +46,21 @@ teacher 2개 병렬 → 출력 점검 → student 5개 병렬 → seed 0 판정�
 cd ~/Documents/aim-lab-test-4 &&
 bash setup.sh stage1-summary &&
 git add -- reports/stage1/ &&
-git commit --only -m "results: report Stage 1 seed 0 gate" -m "Agent: Codex" -- reports/stage1/ &&
+{
+  if git diff --cached --quiet -- reports/stage1/; then
+    echo "보고서 변경 없음: 기존 커밋 업로드를 계속합니다."
+  else
+    git commit --only -m "results: report Stage 1 seed 0 gate" -m "Agent: Codex" -- reports/stage1/
+  fi
+} &&
+git pull --rebase origin stage1-ls-gate &&
+git push origin HEAD:stage1-ls-gate
+```
+
+이미 `nothing to commit, working tree clean`과 `ahead ... by 1 commit`이 나왔다면 보고서는 커밋됐고 업로드만 남은 상태다. 아래 명령만 실행하면 된다.
+
+```bash
+cd ~/Documents/aim-lab-test-4 &&
 git pull --rebase origin stage1-ls-gate &&
 git push origin HEAD:stage1-ls-gate
 ```
