@@ -1,0 +1,76 @@
+{
+  "seed": 0,
+  "measurement_seed": 0,
+  "manifest_sha256": "ffbd7a44425184e36efc3f51821cb1fb7126d5fea1dbfeaf0c3229a90528e62e",
+  "source_sha256": "4d70a6a2dc8999346d0abb43f4379a1251cb53c78e072dc7f488462fe42a297e",
+  "gate_split": "train",
+  "train_transform": "full_image_resize224_flip_train_only",
+  "teachers": {
+    "T_LS0": {
+      "checkpoint": "outputs/stage1_ls_gate/seed_0/T_LS0/last.pt",
+      "checkpoint_sha256": "6e31acca311a19b307a722008ef6c7f65259445ec04217f7d86f8486faf293d6",
+      "teacher_label_smoothing": 0.0,
+      "train": {
+        "samples": 6000,
+        "accuracy": 1.0,
+        "macro_accuracy": 1.0,
+        "kl_to_ls": 0.09256596019567113,
+        "nontarget_entropy@T1": 0.9634555301123447,
+        "nontarget_entropy@T4": 0.9976832413686237
+      },
+      "val": {
+        "samples": 1000,
+        "accuracy": 0.98,
+        "macro_accuracy": 0.9800000000000001,
+        "kl_to_ls": 0.1793559270562328,
+        "nontarget_entropy@T1": 0.9084068344201902,
+        "nontarget_entropy@T4": 0.9901980242212378
+      },
+      "gate": "PASS"
+    },
+    "T_LS01": {
+      "checkpoint": "outputs/stage1_ls_gate/seed_0/T_LS01/last.pt",
+      "checkpoint_sha256": "734e0284b4ebcc3e862d17188dde26944a6534336866c6e1fb5d4155f8604484",
+      "teacher_label_smoothing": 0.1,
+      "train": {
+        "samples": 6000,
+        "accuracy": 1.0,
+        "macro_accuracy": 1.0,
+        "kl_to_ls": 0.0005819148347673675,
+        "nontarget_entropy@T1": 0.9983527559025503,
+        "nontarget_entropy@T4": 0.9998976094320131
+      },
+      "val": {
+        "samples": 1000,
+        "accuracy": 0.985,
+        "macro_accuracy": 0.985,
+        "kl_to_ls": 0.05689196545424332,
+        "nontarget_entropy@T1": 0.9798967195603053,
+        "nontarget_entropy@T4": 0.998908561795399
+      },
+      "gate": "PASS"
+    },
+    "T_LS01_best": {
+      "checkpoint": "outputs/stage1_ls_gate/seed_0/T_LS01/best.pt",
+      "checkpoint_sha256": "9a435130896203b0192341a0eab7743801c176005f21150fb58d5247e0d87345",
+      "teacher_label_smoothing": 0.1,
+      "train": {
+        "samples": 6000,
+        "accuracy": 1.0,
+        "macro_accuracy": 1.0,
+        "kl_to_ls": 0.0006558997965475657,
+        "nontarget_entropy@T1": 0.998168437541671,
+        "nontarget_entropy@T4": 0.9998863472596778
+      },
+      "val": {
+        "samples": 1000,
+        "accuracy": 0.986,
+        "macro_accuracy": 0.986,
+        "kl_to_ls": 0.058030524290328754,
+        "nontarget_entropy@T1": 0.9796101789981502,
+        "nontarget_entropy@T4": 0.9988861382370359
+      },
+      "gate": "N/A"
+    }
+  }
+}

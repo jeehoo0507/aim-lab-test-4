@@ -1,0 +1,9 @@
+{
+  "role": "student",
+  "method": "ce",
+  "teacher_checkpoint": null,
+  "teacher_sha256": null,
+  "initial_model_sha256": "543d4714549b4a1318384fd102ebcfc4b65a0ccf73da68d63e1507d15e5a4e8a",
+  "metadata_sha256": "ffbd7a44425184e36efc3f51821cb1fb7126d5fea1dbfeaf0c3229a90528e62e",
+  "code_sha256": "4d70a6a2dc8999346d0abb43f4379a1251cb53c78e072dc7f488462fe42a297e"
+}

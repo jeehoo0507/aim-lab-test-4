@@ -1,6 +1,6 @@
 {
-  "decision": "WAIT_SEED0",
-  "selected": null,
+  "decision": "STOP_SEED0",
+  "selected": "LS0_T4",
   "rules": [
     {
       "rule": "local/server test suite (current source)",
@@ -8,27 +8,32 @@
     },
     {
       "rule": "R1_ce: regression ±2.0 pp",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     {
       "rule": "R1_ce: initial checksum",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     {
       "rule": "R2_full_LS01best_T1: regression ±2.0 pp",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     {
       "rule": "R2_full_LS01best_T1: initial checksum",
-      "status": "NOT_RUN"
+      "status": "PASS"
+    },
+    {
+      "rule": "seed 0 KD − CE ≥1.5 pp",
+      "status": "FAIL",
+      "delta_pp": -0.5700000000000003
     },
     {
       "rule": "seed 0 T_LS0: train KL gate",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     {
       "rule": "seed 0 T_LS01: train KL gate",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     {
       "rule": "seed 1 T_LS0: train KL gate",
@@ -36,7 +41,11 @@
     },
     {
       "rule": "manifest_sha256",
-      "status": "NOT_RUN"
+      "status": "PASS"
+    },
+    {
+      "rule": "Seed 0 gate failed; ask user for next step",
+      "status": "FAIL"
     }
   ]
 }
