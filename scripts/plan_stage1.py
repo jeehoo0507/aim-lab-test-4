@@ -83,7 +83,7 @@ def run_batch(seed, names):
             log.close()
 
 
-def execute(jobs):
+def execute(jobs, stop_after_seed0=False):
     if jobs != 5:
         raise ValueError("Approved Stage 1 student concurrency is --jobs 5; stop and ask before changing")
     if (OUTPUT / "STOP.json").exists():
@@ -116,6 +116,9 @@ def execute(jobs):
         write_json(OUTPUT / "STOP.json", {"decision": decision["decision"], "reason": "Seed 0 gate failed; ask user for next step"})
         raise RuntimeError(f"{decision['decision']}: no further experiments")
     selected = decision["selected"]
+    if stop_after_seed0:
+        print(f"SEED0_DONE: {decision['decision']}, selected={selected.removeprefix('LS0_')}", flush=True)
+        return
     run_batch(1, ("T_LS0",))
     check_teachers(1)
     require_teacher_checks(1)
@@ -132,6 +135,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("test", "plan", "run", "summary", "worker"))
     parser.add_argument("--jobs", type=int, default=5)
+    parser.add_argument("--stop-after-seed0", action="store_true",
+                        help="After the seed 0 decision and summary, exit successfully without starting seed 1")
     parser.add_argument("--seed", type=int, choices=(0, 1), default=0)
     parser.add_argument("--name")
     args = parser.parse_args()
@@ -152,7 +157,7 @@ def main():
     else:
         with RunLock(OUTPUT / ".stage1.lock"):
             try:
-                execute(args.jobs)
+                execute(args.jobs, stop_after_seed0=args.stop_after_seed0)
             except Exception as error:
                 if not (OUTPUT / "STOP.json").exists():
                     write_json(OUTPUT / "STOP.json", {"decision": "STOP", "reason": str(error)})
