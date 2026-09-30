@@ -51,6 +51,34 @@ tail -n 30 -f \
 
 각 에포치가 끝나면 `T_LS0 1/30: ...` 같은 진행이 표시된다. 첫 에포치 도중에는 출력이 없을 수 있다. 계속 비어 있으면 새 터미널에서 `nvidia-smi`로 GPU 사용 상태를 확인하고 teacher 로그와 함께 확인한다.
 
+### 로그가 비어 있거나 GPU 사용률이 불규칙할 때
+
+첫 진행 로그는 학습 1에포치 → validation → 체크포인트·history 저장이 끝난 뒤 출력된다. `num_workers=0`이므로 CPU의 이미지 읽기·전처리를 기다리며 GPU 사용률이 떨어질 수 있지만, 사용률 변동만으로 정상 진행이라고 확정할 수는 없다.
+
+새 터미널에서 아래 전체를 실행한다. 현재 tako-server 경로 기준이며 다른 곳에 클론했다면 첫 줄의 경로를 바꾼다. 파일과 프로세스 상태만 읽으므로 실행 중인 학습에 영향을 주지 않는다.
+
+```bash
+if cd ~/Documents/aim-lab-test-4; then
+  ps -eo pid,etime,pcpu,stat,args | grep '[s]cripts.plan_stage1'
+  ls -lh outputs/stage1_ls_gate/seed_0/T_LS*/{run_start.json,history.json}
+  tail -n 20 logs/stage1_seed0_launcher.log \
+    outputs/stage1_ls_gate/_jobs/seed_0_T_LS0.log \
+    outputs/stage1_ls_gate/_jobs/seed_0_T_LS01.log
+  if [ -f outputs/stage1_ls_gate/STOP.json ]; then
+    cat outputs/stage1_ls_gate/STOP.json
+  fi
+  nvidia-smi
+fi
+```
+
+- `run_start.json`이 있으면 해당 run의 모델 초기화까지 완료했다.
+- `history.json`이 있으면 에포치 결과가 저장된 상태다. 파일이 있다는 것만으로 현재도 학습 중임을 보장하지는 않는다.
+- 첫 에포치 완료 전에는 `history.json`이 없어서 `ls`에 파일 없음 메시지가 나올 수 있다. 프로세스의 경과 시간·CPU 사용률과 로그를 함께 확인한다.
+- `STOP.json`이 있거나 오류가 보이면 기록을 보존한다. 학습 명령을 다시 실행하거나 STOP을 지우지 않는다.
+
+원인을 확인할 때는 위 출력과 **가중치 다운로드 완료 후 기다린 시간**을 함께 전달한다.
+
+
 ### 나중에 seed 1까지 이어서 실행
 
 나중에 seed 1까지 이어서 진행하려면 다음을 실행한다. 완료한 seed 0 run은 재사용한다.
