@@ -35,6 +35,24 @@ fi
 
 teacher 2개 병렬 → 출력 점검 → student 5개 병렬 → seed 0 판정·SUMMARY 생성까지 수행한다. 통과하면 `SEED0_DONE: RUN_SEED1, selected=T1` 또는 `selected=T4`를 출력하고 정상 종료한다. seed 1은 시작하지 않는다. 실패 판정은 기존대로 `STOP.json`에 기록한다.
 
+
+### teacher 학습 진행 로그 확인
+
+초기 가중치 다운로드가 100%에서 멈춘 것처럼 보여도 launcher 로그에는 에포치별 진행이 나오지 않는다. teacher 진행은 별도 로그에 기록된다. 현재 `tail -f` 화면에서 `Ctrl+C`로 로그 보기만 끝낸 뒤 아래를 실행한다. 백그라운드 학습은 계속되므로 학습 명령을 다시 실행하지 않는다.
+
+아래는 현재 tako-server의 클론 위치인 `~/Documents/aim-lab-test-4` 기준이다. 홈 폴더에 클론했다면 첫 줄을 `cd ~/aim-lab-test-4 &&`로 바꾼다.
+
+```bash
+cd ~/Documents/aim-lab-test-4 &&
+tail -n 30 -f \
+  outputs/stage1_ls_gate/_jobs/seed_0_T_LS0.log \
+  outputs/stage1_ls_gate/_jobs/seed_0_T_LS01.log
+```
+
+각 에포치가 끝나면 `T_LS0 1/30: ...` 같은 진행이 표시된다. 첫 에포치 도중에는 출력이 없을 수 있다. 계속 비어 있으면 새 터미널에서 `nvidia-smi`로 GPU 사용 상태를 확인하고 teacher 로그와 함께 확인한다.
+
+### 나중에 seed 1까지 이어서 실행
+
 나중에 seed 1까지 이어서 진행하려면 다음을 실행한다. 완료한 seed 0 run은 재사용한다.
 
 ```bash
