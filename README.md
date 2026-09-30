@@ -5,6 +5,7 @@
 서버에서 새 폴더에 클론하는 것부터 seed 0 실행까지의 전체 명령이다. 기존 `uv`가 PATH에 있어야 한다. 먼저 감사표 생성까지만 실행한다. 각 단계가 성공해야 다음 단계가 실행된다.
 
 ```bash
+cd ~ &&
 git clone --branch stage1-ls-gate https://github.com/jeehoo0507/aim-lab-test-4.git aim-lab-test-4 &&
 cd aim-lab-test-4 &&
 bash setup.sh install &&
@@ -24,17 +25,23 @@ cat reports/stage1/CONFIG_AUDIT.md
 확인을 마친 뒤 아래 명령을 별도로 실행한다. `nohup`으로 SSH 연결이 끊겨도 학습 프로세스를 유지한다.
 
 ```bash
-nohup bash setup.sh stage1-run --jobs 5 --stop-after-seed0 > logs/stage1_seed0_launcher.log 2>&1 < /dev/null &
-tail -f logs/stage1_seed0_launcher.log
+if cd ~/aim-lab-test-4 && mkdir -p logs; then
+  nohup bash setup.sh stage1-run --jobs 5 --stop-after-seed0 > logs/stage1_seed0_launcher.log 2>&1 < /dev/null &
+  tail -f logs/stage1_seed0_launcher.log
+fi
 ```
+
+위 블록이 **seed 0 학습 실행 명령**이다. 준비·테스트·감사표 확인을 마친 뒤 한 번만 실행한다. 새 터미널에서도 프로젝트 폴더로 이동하고 `logs/`를 만든 뒤 시작한다. 다른 위치에 클론했다면 `~/aim-lab-test-4`를 실제 경로로 바꾼다. `tail`은 로그 보기이며 `Ctrl+C`로 로그 보기를 끝내도 학습은 계속된다.
 
 teacher 2개 병렬 → 출력 점검 → student 5개 병렬 → seed 0 판정·SUMMARY 생성까지 수행한다. 통과하면 `SEED0_DONE: RUN_SEED1, selected=T1` 또는 `selected=T4`를 출력하고 정상 종료한다. seed 1은 시작하지 않는다. 실패 판정은 기존대로 `STOP.json`에 기록한다.
 
 나중에 seed 1까지 이어서 진행하려면 다음을 실행한다. 완료한 seed 0 run은 재사용한다.
 
 ```bash
-nohup bash setup.sh stage1-run --jobs 5 > logs/stage1_seed1_launcher.log 2>&1 < /dev/null &
-tail -f logs/stage1_seed1_launcher.log
+if cd ~/aim-lab-test-4 && mkdir -p logs; then
+  nohup bash setup.sh stage1-run --jobs 5 > logs/stage1_seed1_launcher.log 2>&1 < /dev/null &
+  tail -f logs/stage1_seed1_launcher.log
+fi
 ```
 
 이 브랜치는 `aim-lab-test-2`의 `8ebf7af`를 기준으로 한 COCO-10 teacher LS 제거 실험이다. 서버 자산 부재에 따른 사용자 승인 변경은 [CHANGELOG](CHANGELOG.md)에 기록했다. 기존 클론의 이전 경로 오류에서 갱신하는 방법은 [실행 안내](docs/STAGE1_RUNBOOK.md#기존-클론의-경로-오류에서-갱신)에 있다.

@@ -8,6 +8,7 @@
 기존 `aim-lab-test-2` 폴더와 다른 새 폴더에서 실행한다. 기존 uv 실행 파일이 PATH에 있어야 한다.
 
 ```bash
+cd ~ &&
 git clone --branch stage1-ls-gate https://github.com/jeehoo0507/aim-lab-test-4.git aim-lab-test-4 &&
 cd aim-lab-test-4 &&
 bash setup.sh install &&
@@ -27,9 +28,13 @@ cat reports/stage1/CONFIG_AUDIT.md
 확인을 마친 뒤 아래 명령을 별도로 실행한다. SSH 연결 종료 후에도 학습이 유지되도록 `nohup`을 사용한다.
 
 ```bash
-nohup bash setup.sh stage1-run --jobs 5 --stop-after-seed0 > logs/stage1_seed0_launcher.log 2>&1 < /dev/null &
-tail -f logs/stage1_seed0_launcher.log
+if cd ~/aim-lab-test-4 && mkdir -p logs; then
+  nohup bash setup.sh stage1-run --jobs 5 --stop-after-seed0 > logs/stage1_seed0_launcher.log 2>&1 < /dev/null &
+  tail -f logs/stage1_seed0_launcher.log
+fi
 ```
+
+위 블록이 **seed 0 학습 실행 명령**이다. 준비·테스트·감사표 확인을 마친 뒤 한 번만 실행한다. 새 터미널에서도 프로젝트 폴더로 이동하고 `logs/`를 만든 뒤 시작한다. 다른 위치에 클론했다면 `~/aim-lab-test-4`를 실제 경로로 바꾼다. `tail`은 로그 보기이며 `Ctrl+C`로 로그 보기를 끝내도 학습은 계속된다.
 
 `stage1-test`는 전체 기존 테스트와 Stage 1 테스트를 CPU에서 실행한다. 합성 테스트 데이터는 클론 안의 임시 폴더에만 만든다. 실제 COCO test 이미지·예측·지표는 테스트 실행 중 읽지 않는다. 별도 `stage1-prepare`는 기존 준비 절차대로 전체 split을 구성·무결성 검사하지만 모델의 test 성능을 평가하지 않는다. 소스·config·lockfile·테스트가 바뀌면 테스트 통과 기록이 무효화되며 GPU 실행을 거부한다. 서버에서 다시 테스트해야 하므로 로컬 통과 기록만으로는 실행되지 않는다.
 
@@ -55,7 +60,10 @@ bash setup.sh stage1-plan
 ## seed 0까지만 실행한 뒤 이어서 진행
 
 ```bash
-nohup bash setup.sh stage1-run --jobs 5 --stop-after-seed0 > logs/stage1_seed0_launcher.log 2>&1 < /dev/null &
+if cd ~/aim-lab-test-4 && mkdir -p logs; then
+  nohup bash setup.sh stage1-run --jobs 5 --stop-after-seed0 > logs/stage1_seed0_launcher.log 2>&1 < /dev/null &
+  tail -f logs/stage1_seed0_launcher.log
+fi
 ```
 
 seed 0의 `decide_seed0` 판정과 SUMMARY 생성까지 수행한다. `RUN_SEED1`이면 `SEED0_DONE: RUN_SEED1, selected=T1` 또는 `selected=T4`를 출력하고 exit 0으로 종료하며, seed 1을 시작하거나 `STOP.json`을 만들지 않는다. `STOP_*` 판정이면 기존대로 STOP 기록을 남기고 실패 종료한다.
@@ -63,8 +71,10 @@ seed 0의 `decide_seed0` 판정과 SUMMARY 생성까지 수행한다. `RUN_SEED1
 나중에 같은 소스·config에서 옵션을 빼고 실행한다.
 
 ```bash
-nohup bash setup.sh stage1-run --jobs 5 > logs/stage1_seed1_launcher.log 2>&1 < /dev/null &
-tail -f logs/stage1_seed1_launcher.log
+if cd ~/aim-lab-test-4 && mkdir -p logs; then
+  nohup bash setup.sh stage1-run --jobs 5 > logs/stage1_seed1_launcher.log 2>&1 < /dev/null &
+  tail -f logs/stage1_seed1_launcher.log
+fi
 ```
 
 완료한 seed 0 학습 run은 기존 완료 검증을 거쳐 재사용한다. 자산·teacher 출력·seed 0 판정을 다시 확인한 뒤 선택된 seed 1으로 진행한다. 옵션은 실행 제어에만 쓰며 config·판정 규칙·임계값에 저장하거나 영향을 주지 않는다.
