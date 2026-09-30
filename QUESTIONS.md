@@ -3,7 +3,7 @@
 상태: 사용자 Q1–Q6 답변 수신. 로컬 구현·테스트 및 서버 실행 명령 작성이 승인되었다. GPU 실행은 사용자가 수행한다.
 기준 문서: `docs/STAGE1_PROTOCOL.md`에 사용자가 마지막으로 보낸 프로토콜 원문을 보존한다.
 
-## 이미 확정된 추가 지시와 확인 사항
+## 최초 제출 시점의 추가 지시와 확인 사항 (최신 후속 변경은 문서 끝 참조)
 
 - 코드 기준: `jeehoo0507/aim-lab-test-2`의 `8ebf7afe09c9cc701236a2b972b2f12b04c9fbed`, 작업 브랜치 `stage1-ls-gate`.
 - 사용자가 별도로 지정한 업로드 대상: `https://github.com/jeehoo0507/aim-lab-test-4` (`origin`). 원본 저장소는 `upstream`으로 보존한다.
@@ -71,3 +71,11 @@ GPU 실험을 실행할 서버/접속 방법, 준비 COCO-10 디렉터리, 실�
 - Q6: 동률이면 T=1. teacher 2개 병렬, student 5개는 `--jobs 5`로 동시에 실행한다. workers 0, threads 2. OOM이면 멈춘다.
 - 추가: T_LS0/T_LS01은 별도 출력 폴더와 epoch 30 `last.pt`를 사용한다. R2만 기존 `best.pt`를 사용한다.
 - 추가: `UV_CACHE_DIR`, `UV_PYTHON_INSTALL_DIR`, `UV_TOOL_DIR`, `TORCH_HOME`, `XDG_CACHE_HOME`, `TMPDIR`를 모두 `setup.sh`에서 클론 내부 경로로 export한다. 셸 설정 파일은 수정하지 않는다.
+
+## 후속 변경 지시 — tako-server 자산 부재 (2026-09-30)
+
+- 위의 외부 데이터·teacher 경로 지정은 폐기한다. tako-server에는 실험 2 자산이 없다.
+- `stage1-prepare`로 클론 내부 `data/coco_single`에 데이터를 새로 준비한다. `8ebf7af:coco_kd/prepare.py`는 변경하지 않으며 준비 후 기존 manifest SHA-256 기준을 유지한다. 불일치하면 중단한다.
+- 과거 teacher의 고정 SHA-256 검사는 제거한다. `R2_full_old_T1`을 `R2_full_LS01best_T1`로 바꾸고 seed 0의 새 `T_LS01/best.pt`를 T=1로 사용한다.
+- R2는 T_LS01 학습 이후 실행한다. teacher 출력 점검의 세 번째 행은 새 `T_LS01_best`로 대체한다. 기존 두 last teacher의 KL 판정과 best 행의 보고 전용 성격은 유지한다.
+- R1은 동일하며 R2의 회귀 기준 58.91 ±2.0%p, 초기 checksum, 다른 판정·임계값·설정은 유지한다. 원문 프로토콜은 기록으로 보존한다.

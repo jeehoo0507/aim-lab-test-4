@@ -84,7 +84,7 @@ def cpu_state(model):
 def source_fingerprint():
     digest = hashlib.sha256()
     root = Path(__file__).parent
-    for name in ("adaptive.py", "config.py", "data.py", "models.py", "masking.py", "train.py", "probe.py", "utils.py", "stage1.py", "stage1_report.py"):
+    for name in ("adaptive.py", "config.py", "data.py", "models.py", "masking.py", "train.py", "probe.py", "utils.py", "stage1.py", "stage1_report.py", "prepare.py"):
         digest.update(name.encode())
         digest.update((root / name).read_bytes())
     for name in ("plan_stage1.py", "check_teacher_outputs.py"):

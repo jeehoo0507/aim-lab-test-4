@@ -57,6 +57,7 @@ def test_cli_seed0_pause_is_successful_and_resume_starts_only_new_seed1_runs(pip
     assert plan_stage1.main() is None  # normal CLI return => exit 0
     assert f"SEED0_DONE: RUN_SEED1, selected={selected.removeprefix('LS0_')}" in capsys.readouterr().out
     assert events[-1] == "summary"
+    assert events[:3] == [("batch", 0, stage1.TEACHERS), ("check", 0), ("batch", 0, stage1.STUDENTS)]
     assert all(seed == 0 for seed, _ in training)
     assert len(training) == 7
     assert not (plan_stage1.OUTPUT / "STOP.json").exists()
@@ -76,7 +77,7 @@ def test_seed0_pause_preserves_stop_file_and_failure_exit(pipeline, monkeypatch,
     if decision == "STOP_SEED0":
         rows["LS0_T1"]["mean_pp"] = rows["LS0_T4"]["mean_pp"] = 61.
     else:
-        rows["R2_full_old_T1"]["mean_pp"] = 55.
+        rows["R2_full_LS01best_T1"]["mean_pp"] = 55.
     monkeypatch.setattr(sys, "argv", ["plan_stage1.py", "run", "--stop-after-seed0"])
     with pytest.raises(RuntimeError, match=decision):
         plan_stage1.main()

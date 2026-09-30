@@ -104,7 +104,8 @@ def test_output_kl_reference_distributions_and_normalized_entropy():
 def test_frozen_configs_paths_roles_and_unused_temperature(tmp_path):
     for seed, name in stage1.specs():
         cfg = stage1.read_config(seed, name)
-        if cfg.teacher_checkpoint and name != "R2_full_old_T1":
+        assert cfg.data_root == "data/coco_single"
+        if cfg.teacher_checkpoint and name != "R2_full_LS01best_T1":
             assert Path(cfg.teacher_checkpoint).name == "last.pt"
         assert cfg.label_smoothing == .1 and cfg.num_workers == 0 and not cfg.probe_enabled
         assert cfg.temperature == (4 if name.endswith("T4") else 1)
@@ -112,6 +113,10 @@ def test_frozen_configs_paths_roles_and_unused_temperature(tmp_path):
     assert run_path(first, "teacher") != run_path(second, "teacher")
     changes = {k for k, v in first.to_dict().items() if second.to_dict()[k] != v}
     assert changes == {"teacher_label_smoothing", "stage1_run"}
+    r2 = stage1.read_config(0, "R2_full_LS01best_T1")
+    assert r2.teacher_checkpoint == str(run_path(second, "teacher") / "best.pt")
+    assert r2.temperature == 1 and r2.teacher_label_smoothing == .1
+    assert stage1.BASELINES == {"R1_ce": 60.78, "R2_full_LS01best_T1": 58.91}
     with pytest.raises(ValueError, match="fixed config"):
         stage1.validate_recipe(replace(first, batch_size=16))
     missing = first.to_dict()
@@ -176,9 +181,9 @@ def test_epoch_window_and_gate_boundaries():
     assert stage1.decide_seed1(rows, "LS0_T1")["decision"] == "FINAL_PASS"
     rows["LS0_T1"]["mean_pp"] = rows["LS0_T4"]["mean_pp"] = 61.49
     assert stage1.decide_seed0(rows)["decision"] == "STOP_SEED0"
-    rows["R2_full_old_T1"]["mean_pp"] = 56.
+    rows["R2_full_LS01best_T1"]["mean_pp"] = 56.
     assert stage1.decide_seed0(rows)["decision"] == "STOP_REGRESSION"
-    rows["R2_full_old_T1"]["mean_pp"] = 59.
+    rows["R2_full_LS01best_T1"]["mean_pp"] = 59.
     rows["R1_ce"]["initial_model_sha256"] = "wrong"
     assert stage1.decide_seed0(rows)["decision"] == "STOP_REGRESSION"
     assert stage1.teacher_pass("T_LS0", .02)
@@ -259,9 +264,9 @@ def test_report_generates_tables_and_five_curves_without_reading_test(tmp_path, 
     teacher_metric = {"accuracy": .9, "macro_accuracy": .9, "kl_to_ls": .1,
                       "nontarget_entropy@T1": .8, "nontarget_entropy@T4": .9}
     teachers = {}
-    for name in ("T_LS0", "T_LS01", "experiment2_best"):
+    for name in ("T_LS0", "T_LS01", "T_LS01_best"):
         metric = dict(teacher_metric, kl_to_ls=.1 if name == "T_LS0" else .001)
-        teachers[name] = {"train": metric, "val": metric, "gate": "PASS" if name != "experiment2_best" else "N/A"}
+        teachers[name] = {"train": metric, "val": metric, "gate": "PASS" if name != "T_LS01_best" else "N/A"}
     write_json(output / "seed_0/teacher_checks.json", {"teachers": teachers})
     monkeypatch.setattr(stage1_report, "OUTPUT", output)
     monkeypatch.setattr(stage1_report, "REPORT", report)
@@ -271,5 +276,7 @@ def test_report_generates_tables_and_five_curves_without_reading_test(tmp_path, 
     text = (report / "SUMMARY.md").read_text()
     assert result["decision"] == "WAIT_SEED1" and result["selected"] == "LS0_T1"
     assert all(name in text for name in stage1.STUDENTS)
+    assert "T_LS01_best" in text and "experiment2_best" not in text
+    assert "old_teacher_sha256" not in text
     assert (report / "val_curves.png").stat().st_size > 0
     assert not list(report.rglob("test_metrics.json"))

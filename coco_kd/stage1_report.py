@@ -1,7 +1,7 @@
 """Generate Stage 1 tables and validation curves from recorded result files."""
 import json
 
-from .stage1 import (INITIAL_SHA256, MANIFEST_SHA256, OLD_TEACHER_SHA256, OUTPUT, REPORT, STUDENTS,
+from .stage1 import (INITIAL_SHA256, MANIFEST_SHA256, OUTPUT, REPORT, STUDENTS,
                      BASELINES, config_audit, decide_seed0, decide_seed1, read_student_rows,
                      teacher_pass, validation_fingerprint)
 from .utils import write_json
@@ -37,7 +37,7 @@ def summary():
         rules.insert(0, {"rule": "local/server test suite", "status": "NOT_RUN"})
     preflight = OUTPUT / "preflight.json"
     assets = json.loads(preflight.read_text())["assets"] if preflight.exists() else {}
-    for key, expected in (("manifest_sha256", MANIFEST_SHA256), ("old_teacher_sha256", OLD_TEACHER_SHA256)):
+    for key, expected in (("manifest_sha256", MANIFEST_SHA256),):
         rules.append({"rule": key, "status": "NOT_RUN" if key not in assets else "PASS" if assets[key] == expected else "FAIL"})
     stop_path = OUTPUT / "STOP.json"
     stop = json.loads(stop_path.read_text()) if stop_path.exists() else None
@@ -46,11 +46,12 @@ def summary():
         rules.append({"rule": stop["reason"].replace("|", "/").replace("\n", " "), "status": "FAIL"})
     lines = ["# Stage 1 — KD gate", "", f"Decision: **{decision['decision']}**", "",
              "Only validation is used for student decisions. NOT_RUN means no measurement; it is not a failure or a pass.", "",
+             "R2 uses newly trained seed 0 T_LS01 best.pt. The historical 58.91 ±2.0 pp reference is retained by user instruction; the original experiment-2 teacher is not replayed.", "",
              "## Table 1: teacher outputs", "",
              "Train uses augmentation once with measurement seed 0; KL gates apply only to train. Entropy is normalized by log(9).", "",
              "| seed | teacher | split | accuracy % | macro % | KL to LS (nats) | nontarget entropy T=1 | T=4 | train gate |",
              "|---|---|---|---|---|---|---|---|---|"]
-    for seed, names in ((0, ("T_LS0", "T_LS01", "experiment2_best")), (1, ("T_LS0",))):
+    for seed, names in ((0, ("T_LS0", "T_LS01", "T_LS01_best")), (1, ("T_LS0",))):
         for name in names:
             row = teacher_records.get(seed, {}).get("teachers", {}).get(name)
             for split in ("train", "val"):

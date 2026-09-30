@@ -11,14 +11,13 @@ from .utils import sha256, source_fingerprint, write_json
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = Path("outputs/stage1_ls_gate")
 REPORT = Path("reports/stage1")
-DATA = "/home/kebap/Desktop/workspace/34/aim-lab-test-2/data/coco_single"
-OLD_TEACHER = "/home/kebap/Desktop/workspace/34/aim-lab-test-2/outputs/experiment2/seed_0/teacher/best.pt"
+DATA = "data/coco_single"
+PREPARE_SHA256 = "a51e46ee10b1b1818d66777c509fd7e614ca852dc195e5d5106c1bc82a95e43d"
 MANIFEST_SHA256 = "ffbd7a44425184e36efc3f51821cb1fb7126d5fea1dbfeaf0c3229a90528e62e"
-OLD_TEACHER_SHA256 = "4a18ddc11c98c662fd77ff9f8b5fc249e00d2c0052263e0e8d76f91088556646"
 INITIAL_SHA256 = "543d4714549b4a1318384fd102ebcfc4b65a0ccf73da68d63e1507d15e5a4e8a"
-STUDENTS = ("R1_ce", "R2_full_old_T1", "LS01_T4", "LS0_T1", "LS0_T4")
+STUDENTS = ("R1_ce", "R2_full_LS01best_T1", "LS01_T4", "LS0_T1", "LS0_T4")
 TEACHERS = ("T_LS0", "T_LS01")
-BASELINES = {"R1_ce": 60.78, "R2_full_old_T1": 58.91}
+BASELINES = {"R1_ce": 60.78, "R2_full_LS01best_T1": 58.91}
 
 
 def run_dir(seed, name):
@@ -33,10 +32,10 @@ def recipe(seed, name):
     allowed = (*TEACHERS, *STUDENTS) if seed == 0 else ("T_LS0", "R1_ce", "LS0_T1", "LS0_T4")
     if seed not in (0, 1) or name not in allowed:
         raise ValueError("Unknown Stage 1 seed/run")
-    teacher_ls = 0.1 if name in ("T_LS01", "R2_full_old_T1", "LS01_T4") else 0.0
+    teacher_ls = 0.1 if name in ("T_LS01", "R2_full_LS01best_T1", "LS01_T4") else 0.0
     checkpoint = None
-    if name == "R2_full_old_T1":
-        checkpoint = OLD_TEACHER
+    if name == "R2_full_LS01best_T1":
+        checkpoint = str(run_dir(0, "T_LS01") / "best.pt")
     elif name.startswith("LS"):
         checkpoint = str(run_dir(seed, "T_LS01" if name == "LS01_T4" else "T_LS0") / "last.pt")
     return Config(teacher_label_smoothing=teacher_ls, data_root=DATA, output_root=str(OUTPUT),
@@ -74,8 +73,7 @@ def require_hash(path, expected):
 
 
 def check_assets():
-    return {"manifest_sha256": require_hash(Path(DATA) / "manifest.json", MANIFEST_SHA256),
-            "old_teacher_sha256": require_hash(OLD_TEACHER, OLD_TEACHER_SHA256)}
+    return {"manifest_sha256": require_hash(Path(DATA) / "manifest.json", MANIFEST_SHA256)}
 
 
 def validation_fingerprint():
@@ -102,7 +100,7 @@ def teacher_specs(seed):
     items = [(name, run_dir(seed, name) / "last.pt", 0.0 if name == "T_LS0" else 0.1)
              for name in (TEACHERS if seed == 0 else ("T_LS0",))]
     if seed == 0:
-        items.append(("experiment2_best", Path(OLD_TEACHER), 0.1))
+        items.append(("T_LS01_best", run_dir(0, "T_LS01") / "best.pt", 0.1))
     return items
 
 
@@ -228,8 +226,9 @@ def config_audit():
                      f"{cfg.teacher_lr if teacher else cfg.scratch_lr:g} | {cfg.teacher_epochs if teacher else cfg.epochs} | "
                      f"224 resize + flip | {path or '미사용'} | {digest} | {schedule} |")
     lines.extend(["", f"Required manifest SHA-256: `{MANIFEST_SHA256}`.",
-                  f"Required old teacher SHA-256: `{OLD_TEACHER_SHA256}`.",
-                  "New teachers: epoch 30 `last.pt`; R2 only: old `best.pt`.",
+                  f"Data: `{DATA}`, prepared with unchanged `8ebf7af:coco_kd/prepare.py`.",
+                  "Teachers: epoch 30 `last.pt`; R2 only: newly trained seed 0 `T_LS01/best.pt`.",
+                  "R2 retains the historical 58.91 ±2.0 pp reference by user instruction; it does not replay the original experiment-2 teacher.",
                   "All runs: AdamW wd 0.05, warmup 5 + cosine to 1e-6, batch 32 × accumulation 4, clip 1.0, AMP, drop_path 0.1.",
                   "Student: DeiT-Ti scratch. Teacher: DeiT-S ImageNet. Probe disabled. workers 0, threads 2.",
                   "Teacher measurement seed 0, train gate only; validation is descriptive. No test evaluation."])

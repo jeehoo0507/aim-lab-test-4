@@ -38,6 +38,18 @@ def nontarget_entropy(logits, labels, temperature):
     return -(log_p.exp() * log_p).sum(1) / math.log(9)
 
 
+def validate_checkpoint(state, seed, name, expected_ls):
+    if state["role"] != "teacher" or state["metadata_sha256"] != MANIFEST_SHA256 or state["config"]["seed"] != seed:
+        raise ValueError(f"Teacher checkpoint provenance mismatch: {name}")
+    if state["config"]["teacher_label_smoothing"] != expected_ls:
+        raise ValueError(f"Teacher LS mismatch: {name}")
+    if name == "T_LS01_best":
+        if seed != 0 or state["config"]["stage1_run"] != "T_LS01" or not 1 <= state["epoch"] <= 30:
+            raise ValueError("Expected seed 0 T_LS01 best checkpoint from epochs 1..30")
+    elif state["epoch"] != 30:
+        raise ValueError(f"Expected epoch 30 last teacher: {name}")
+
+
 @torch.inference_mode()
 def measure(model, cfg, split, device):
     if split not in ("train", "val"):
@@ -79,20 +91,14 @@ def check_teachers(seed):
               "train_transform": "full_image_resize224_flip_train_only", "teachers": {}}
     for name, path, expected_ls in teacher_specs(seed):
         state = load_checkpoint(path)
-        checkpoint_seed = 0 if name == "experiment2_best" else seed
-        if state["role"] != "teacher" or state["metadata_sha256"] != MANIFEST_SHA256 or state["config"]["seed"] != checkpoint_seed:
-            raise ValueError(f"Teacher checkpoint provenance mismatch: {path}")
-        if name != "experiment2_best" and (state["epoch"] != 30 or state["config"]["teacher_label_smoothing"] != expected_ls):
-            raise ValueError(f"Expected epoch 30 last teacher with LS={expected_ls}: {path}")
-        if name == "experiment2_best" and state["config"]["label_smoothing"] != expected_ls:
-            raise ValueError("Old teacher LS mismatch")
+        validate_checkpoint(state, seed, name, expected_ls)
         model = build_model("teacher", cfg).to(device).requires_grad_(False).eval()
         model.load_state_dict(state["model"])
         del state
         row = {"checkpoint": str(path), "checkpoint_sha256": sha256(path),
                "teacher_label_smoothing": expected_ls,
                "train": measure(model, cfg, "train", device), "val": measure(model, cfg, "val", device)}
-        row["gate"] = "N/A" if name == "experiment2_best" else "PASS" if teacher_pass(name, row["train"]["kl_to_ls"]) else "FAIL"
+        row["gate"] = "N/A" if name == "T_LS01_best" else "PASS" if teacher_pass(name, row["train"]["kl_to_ls"]) else "FAIL"
         record["teachers"][name] = row
         del model
     write_json(OUTPUT / f"seed_{seed}" / "teacher_checks.json", record)

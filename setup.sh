@@ -37,6 +37,7 @@ echo "Project: $PWD"
 echo "Log: $PWD/$task_log"
 case "$mode" in
   install) ;;
+  stage1-prepare) .venv/bin/python -m scripts.plan_stage1 prepare "$@" ;;
   stage1-test) .venv/bin/python -m scripts.plan_stage1 test "$@" ;;
   stage1-plan) .venv/bin/python -m scripts.plan_stage1 plan "$@" ;;
   stage1-run) .venv/bin/python -m scripts.plan_stage1 run "$@" ;;
@@ -61,5 +62,5 @@ case "$mode" in
   anneal-export) .venv/bin/python -m coco_kd.anneal export "$@" ;;
   adaptive) .venv/bin/python scripts/run_adaptive200.py run "$@" ;;
   adaptive-evaluate) .venv/bin/python scripts/run_adaptive200.py evaluate "$@" ;;
-  *) echo "Usage: bash setup.sh [install|stage1-test|stage1-plan|stage1-run|stage1-summary|check|prepare|benchmark|pilot|run|evaluate|export|anneal|anneal-export|adaptive|adaptive-evaluate]"; exit 2 ;;
+  *) echo "Usage: bash setup.sh [install|stage1-prepare|stage1-test|stage1-plan|stage1-run|stage1-summary|check|prepare|benchmark|pilot|run|evaluate|export|anneal|anneal-export|adaptive|adaptive-evaluate]"; exit 2 ;;
 esac

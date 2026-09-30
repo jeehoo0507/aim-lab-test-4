@@ -9,10 +9,13 @@ git clone --branch stage1-ls-gate https://github.com/jeehoo0507/aim-lab-test-4.g
 cd aim-lab-test-4 &&
 bash setup.sh install &&
 bash setup.sh stage1-test &&
+bash setup.sh stage1-prepare &&
 bash setup.sh stage1-plan
 ```
 
-여기서 멈춰 감사표의 설정과 데이터·teacher 경로를 확인한다. 테스트 실패나 경로 문제가 있으면 학습을 시작하지 않는다.
+`stage1-prepare`는 기준 커밋의 변경 없는 준비 코드로 클론 내부 `data/coco_single`에 COCO-10을 다운로드·준비한다. 완료 후 manifest SHA-256이 지정값과 다르면 중단한다.
+
+여기서 멈춰 감사표의 설정과 데이터·teacher 경로를 확인한다. R2는 이번에 학습할 `T_LS01/best.pt`를 사용하며 과거 실험 2 teacher 파일은 필요 없다. 테스트 실패나 해시 문제가 있으면 학습을 시작하지 않는다.
 
 ```bash
 cat reports/stage1/CONFIG_AUDIT.md
@@ -34,10 +37,10 @@ nohup bash setup.sh stage1-run --jobs 5 > logs/stage1_seed1_launcher.log 2>&1 < 
 tail -f logs/stage1_seed1_launcher.log
 ```
 
-이 브랜치는 `aim-lab-test-2`의 `8ebf7af`를 기준으로 한 COCO-10 teacher LS 제거 실험이다.
+이 브랜치는 `aim-lab-test-2`의 `8ebf7af`를 기준으로 한 COCO-10 teacher LS 제거 실험이다. 서버 자산 부재에 따른 사용자 승인 변경은 [CHANGELOG](CHANGELOG.md)에 기록했다. 기존 클론의 이전 경로 오류에서 갱신하는 방법은 [실행 안내](docs/STAGE1_RUNBOOK.md#기존-클론의-경로-오류에서-갱신)에 있다.
 [고정 프로토콜](docs/STAGE1_PROTOCOL.md) · [확정 답변](QUESTIONS.md) · [A5000 서버 실행 안내](docs/STAGE1_RUNBOOK.md) · [설정 감사](reports/stage1/CONFIG_AUDIT.md) · [실행 상태/결과](reports/stage1/SUMMARY.md)
 
-실제 test는 평가하지 않는다. uv 설치물과 캐시는 모두 이 클론 안에 저장한다.
+실제 test 성능은 평가하지 않는다. 새 데이터·가중치·uv 설치물·캐시는 모두 이 클론 안에 저장한다.
 
 아래는 기준 코드의 실험 2 안내다. 이번 Stage 1 실행에는 위의 전용 실행 안내를 사용한다.
 

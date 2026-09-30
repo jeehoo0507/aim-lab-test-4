@@ -1,6 +1,6 @@
 {
   "teacher_label_smoothing": 0.1,
-  "data_root": "/home/kebap/Desktop/workspace/34/aim-lab-test-2/data/coco_single",
+  "data_root": "data/coco_single",
   "output_root": "outputs/stage1_ls_gate",
   "device": "cuda",
   "num_classes": 10,
@@ -46,7 +46,7 @@
   "grad_clip": 1.0,
   "model_scale": "deit",
   "max_train_batches": null,
-  "teacher_checkpoint": "/home/kebap/Desktop/workspace/34/aim-lab-test-2/outputs/experiment2/seed_0/teacher/best.pt",
+  "teacher_checkpoint": "outputs/stage1_ls_gate/seed_0/T_LS01/best.pt",
   "probe_enabled": false,
-  "stage1_run": "R2_full_old_T1"
+  "stage1_run": "R2_full_LS01best_T1"
 }

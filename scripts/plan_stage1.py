@@ -11,11 +11,21 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from coco_kd.stage1 import (ROOT, OUTPUT, REPORT, STUDENTS, TEACHERS, check_assets, config_audit,
+from coco_kd.stage1 import (ROOT, OUTPUT, REPORT, DATA, PREPARE_SHA256, STUDENTS, TEACHERS, check_assets, config_audit,
                             decide_seed0, decide_seed1, read_config, read_student_rows,
-                            require_teacher_checks, require_tests, role_method, validation_fingerprint)
+                            require_hash, require_teacher_checks, require_tests, role_method, validation_fingerprint)
 from coco_kd.stage1_report import summary
 from coco_kd.utils import RunLock, write_json
+
+
+def prepare_data():
+    from coco_kd.prepare import prepare
+    source_hash = require_hash(ROOT / "coco_kd/prepare.py", PREPARE_SHA256)
+    # Preserve the original preparation implementation and every default argument.
+    prepare(DATA)
+    assets = check_assets()  # Strict expected manifest hash, immediately after preparation.
+    write_json(OUTPUT / "preparation.json", {"data_root": DATA, "prepare_sha256": source_hash, "assets": assets})
+    print(f"PREPARED: {DATA}, manifest_sha256={assets['manifest_sha256']}", flush=True)
 
 
 def run_tests():
@@ -62,7 +72,7 @@ def run_batch(seed, names):
                     raise RuntimeError(f"seed {seed} {name} exited {code}; inspect {log_root}/seed_{seed}_{name}.log")
                 running.remove((name, proc))
                 print(f"Completed seed {seed} {name}", flush=True)
-                if seed == 0 and name in ("R1_ce", "R2_full_old_T1"):
+                if seed == 0 and name in ("R1_ce", "R2_full_LS01best_T1"):
                     decision = decide_seed0(read_student_rows(0))
                     if decision["decision"] == "STOP_REGRESSION":
                         write_json(OUTPUT / "STOP.json", {"decision": "STOP_REGRESSION", "reason": "Regression failed; remaining workers stopped"})
@@ -133,7 +143,7 @@ def execute(jobs, stop_after_seed0=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("test", "plan", "run", "summary", "worker"))
+    parser.add_argument("command", choices=("prepare", "test", "plan", "run", "summary", "worker"))
     parser.add_argument("--jobs", type=int, default=5)
     parser.add_argument("--stop-after-seed0", action="store_true",
                         help="After the seed 0 decision and summary, exit successfully without starting seed 1")
@@ -157,10 +167,13 @@ def main():
     else:
         with RunLock(OUTPUT / ".stage1.lock"):
             try:
-                execute(args.jobs, stop_after_seed0=args.stop_after_seed0)
+                if args.command == "prepare":
+                    prepare_data()
+                else:
+                    execute(args.jobs, stop_after_seed0=args.stop_after_seed0)
             except Exception as error:
                 if not (OUTPUT / "STOP.json").exists():
-                    write_json(OUTPUT / "STOP.json", {"decision": "STOP", "reason": str(error)})
+                    write_json(OUTPUT / "STOP.json", {"decision": "STOP_PREPARE" if args.command == "prepare" else "STOP", "reason": str(error)})
                 try:
                     summary()
                 except Exception as report_error:

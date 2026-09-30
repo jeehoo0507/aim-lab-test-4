@@ -179,7 +179,7 @@ def _train(cfg, role, method, directory, stop_after):
                "teacher_checkpoint": str(teacher_file) if teacher_file else None,
                "teacher_sha256": teacher_hash, "initial_model_sha256": initial_hash,
                "metadata_sha256": digest, "code_sha256": code_hash})
-    if cfg.stage1_run and cfg.seed == 0 and cfg.stage1_run in ("R1_ce", "R2_full_old_T1"):
+    if cfg.stage1_run and cfg.seed == 0 and cfg.stage1_run in ("R1_ce", "R2_full_LS01best_T1"):
         from .stage1 import INITIAL_SHA256
         if initial_hash != INITIAL_SHA256:
             raise ValueError(f"Stage 1 initial_model_sha256 mismatch: {initial_hash}")

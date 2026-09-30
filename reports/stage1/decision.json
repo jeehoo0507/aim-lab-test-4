@@ -15,11 +15,11 @@
       "status": "NOT_RUN"
     },
     {
-      "rule": "R2_full_old_T1: regression ±2.0 pp",
+      "rule": "R2_full_LS01best_T1: regression ±2.0 pp",
       "status": "NOT_RUN"
     },
     {
-      "rule": "R2_full_old_T1: initial checksum",
+      "rule": "R2_full_LS01best_T1: initial checksum",
       "status": "NOT_RUN"
     },
     {
@@ -36,10 +36,6 @@
     },
     {
       "rule": "manifest_sha256",
-      "status": "NOT_RUN"
-    },
-    {
-      "rule": "old_teacher_sha256",
       "status": "NOT_RUN"
     }
   ]
