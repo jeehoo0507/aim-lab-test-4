@@ -1,5 +1,32 @@
 # AIM Lab 실험 3 · Stage 1 — KD 게이트
 
+## Stage 1b — RRC / mixup 추가 실험
+
+기존 Stage 1 완료 서버에서 아래를 실행한다. teacher는 기존 `T_LS0/last.pt`를 그대로 사용하고, 결과는 `outputs/stage1b_aug/` 및 `reports/stage1b/`에만 저장한다.
+
+```bash
+cd ~/Documents/aim-lab-test-4 &&
+git pull --ff-only origin stage1-ls-gate &&
+bash setup_stage1b.sh test &&
+bash setup_stage1b.sh plan &&
+cat reports/stage1b/CONFIG_AUDIT.md
+```
+
+감사표 확인 후 학습 실행:
+
+```bash
+if cd ~/Documents/aim-lab-test-4 && mkdir -p logs; then
+  nohup bash setup_stage1b.sh run --jobs 5 > logs/stage1b_launcher.log 2>&1 < /dev/null &
+  tail -f logs/stage1b_launcher.log
+fi
+```
+
+먼저 **새 flip 경로의 2에포치 서버 회귀 게이트**를 자동 실행한다. 초기 checksum은 기존 Stage 1 값과 정확히 일치하고, epoch 1·2 train loss·val macro는 기존 기록과 절대 오차 `1e-6` 이내여야 한다. 실패하면 STOP을 기록하고 다섯 run을 시작하지 않는다. 통과하면 **student 5개 병렬 → 보고서 → 정상 종료**이며 `--stop` 옵션이나 자동 seed 1 실행은 없다.
+
+[Stage 1b 전체 실행·로그·결과 업로드 명령](docs/STAGE1B_RUNBOOK.md) · [Stage 1b 결과](reports/stage1b/SUMMARY.md)
+
+아래 Stage 1 안내는 기존 실험 기록이다. Stage 1b에는 위 전용 명령을 사용한다.
+
 ## 먼저 seed 0까지만 실행
 
 서버에서 새 폴더에 클론하는 것부터 seed 0 실행까지의 전체 명령이다. 기존 `uv`가 PATH에 있어야 한다. 먼저 감사표 생성까지만 실행한다. 각 단계가 성공해야 다음 단계가 실행된다.

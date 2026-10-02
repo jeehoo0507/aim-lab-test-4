@@ -119,3 +119,24 @@ GPU 실험을 실행할 서버/접속 방법, 준비 COCO-10 디렉터리, 실�
 - 각 KD run은 같은 증강 CE 대비 val macro 91–100 평균 차이가 1.5pp 이상이면 PASS. CE 행은 기준이며 PASS/FAIL 대상이 아니다. Stage 1의 회귀 수치·STOP을 Stage 1b 중단 기준으로 재사용하지 않는다.
 - Full KD이며 teacher는 재학습하지 않는다. RRC로 foreground가 잘려도 임의 crop 재추첨·필터링을 하지 않는다.
 - timm 참조: https://github.com/huggingface/pytorch-image-models/blob/main/timm/data/mixup.py (구현 시 고정 revision으로 출처 기록).
+
+### Stage 1b 사용자 확정 답변 (2026-10-03)
+
+- B1: A 승인, 단 **config·런처·출력만 분리하고 학습 루프는 복제하지 않는다**. 기존 `coco_kd/train.py`에 증강 옵션을 추가하는 최소 변경은 승인되었다. Stage 1 전용 config·런처·보고서·데이터·가중치·프로토콜은 보존한다.
+- `train_augmentation="flip"`에서 Stage 1 R1_ce와 초기 checksum 및 첫 2에포치 loss/validation이 일치하는 회귀 테스트를 수행한다. 원본 학습 코드는 기준 Git 커밋에서 읽어 검증하며 별도 학습 루프 구현을 유지하지 않는다.
+- B2: A 승인. RRC 이미지는 bicubic + antialias=True, mask는 nearest다.
+- 서버 실행 전에 원본·새 flip 경로를 각각 2에포치 비교한다. 검증 출력도 `outputs/stage1b_aug/`에만 쓰고 기존 Stage 1 실행을 재개하지 않는다.
+
+### Stage 1b 구현 중 검증 중단 (2026-10-03)
+
+- `bash setup_stage1b.sh test`: 70 passed 뒤 flip 회귀 테스트 1개 실패로 중단했다. 나머지 테스트는 아직 실행되지 않았다.
+- 실패 지점은 새 경로가 아니라 Git의 `c5a826d:coco_kd/train.py` 원본 `_train` 초기 checksum 검사다. macOS CPU에서 원본이 생성한 값은 `1284dcfa406db55021620afb0d3bcbd923dc2597a3d122db018bf1633ae9a074`이며 서버 기준 `543d4714549b4a1318384fd102ebcfc4b65a0ccf73da68d63e1507d15e5a4e8a`와 달랐다. 두 경로의 첫 2에포치 비교까지 도달하지 않았다.
+- 플랫폼별 초기화 차이가 의심되나 아직 확정하지 않았다. 결과·기준 해시·레시피는 수정하지 않았다. 구현 작업은 로컬 미커밋 상태이며 GPU 실행은 하지 않았다.
+- 확인 요청: 로컬 검증은 동일 macOS 환경의 원본 Stage 1과 새 flip 경로 사이 checksum·첫 2에포치 loss/val 일치를 검사하고, GPU 서버 검증은 기존 `543d…` checksum 및 업로드된 Stage 1 R1_ce 첫 2에포치 수치와의 일치까지 계속 강제하는 방식으로 분리해도 되는가? 승인 후 원인을 추가 확인하고 검증 코드를 수정한다.
+
+### 플랫폼별 검증 분리 승인 (2026-10-03)
+
+- 로컬(Mac): 동일 Mac의 원본 Stage 1 코드와 새 flip 경로 사이 초기 checksum 및 첫 2에포치 train loss·val macro의 완전 일치를 검사한다. 플랫폼 기준 해시는 사용하지 않는다.
+- 서버(A5000): 새 flip R1_ce 경로만 2에포치 실행한다. 초기 checksum은 기존 `543d4714549b4a1318384fd102ebcfc4b65a0ccf73da68d63e1507d15e5a4e8a`와 정확히 일치해야 한다. epoch 1·2의 train loss와 val macro는 보존된 Stage 1 history와 절대 오차 1e-6 이내여야 한다.
+- 서버 게이트 실패 시 Stage 1b 다섯 run은 시작하지 않고 STOP을 기록한다. 기준 해시·학습 설정은 변경하지 않는다.
+- CPU 동등성 기록(`scope=same_platform_cpu`)과 서버 게이트 기록(`scope=server_a5000`)을 별도 파일에 저장하며 CPU 통과 기록은 서버 실행 허가에 사용하지 않는다. 앞의 서버 원본·새 코드 각각 2에포치 실행 제안은 이 승인 내용으로 대체한다.

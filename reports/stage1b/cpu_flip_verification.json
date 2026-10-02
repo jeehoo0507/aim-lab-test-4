@@ -1,0 +1,109 @@
+{
+  "scope": "same_platform_cpu",
+  "runtime": {
+    "python": "3.11.15",
+    "platform": "macOS-27.0-arm64-arm-64bit",
+    "torch": "2.5.1",
+    "cuda": null
+  },
+  "config": {
+    "teacher_label_smoothing": 0.0,
+    "data_root": "/Users/choejihu/Documents/ChatGPT/aim lab test 4/aim-lab-test-2/.cache/tmp/pytest-of-choejihu/pytest-6/test_flip_matches_pinned_stage0/data",
+    "output_root": "/Users/choejihu/Documents/ChatGPT/aim lab test 4/aim-lab-test-2/.cache/tmp/pytest-of-choejihu/pytest-6/test_flip_matches_pinned_stage0/out",
+    "device": "cpu",
+    "num_classes": 10,
+    "batch_size": 2,
+    "eval_batch_size": 2,
+    "accumulation_steps": 4,
+    "num_workers": 0,
+    "num_threads": 2,
+    "epochs": 100,
+    "teacher_epochs": 30,
+    "seed": 0,
+    "scratch_lr": 0.0005,
+    "pretrained_lr": 5e-05,
+    "teacher_lr": 5e-05,
+    "min_lr": 1e-06,
+    "warmup_epochs": 5,
+    "weight_decay": 0.05,
+    "drop_path": 0.1,
+    "label_smoothing": 0.1,
+    "kd_alpha": 0.5,
+    "temperature": 1.0,
+    "keep_tokens": 98,
+    "foreground_threshold": 0.5,
+    "checkpoint_every": 50,
+    "checkpoint_target_gb": 5.0,
+    "output_warning_gb": 10.0,
+    "diagnostic_epochs": [
+      0,
+      10,
+      25,
+      50,
+      75,
+      100
+    ],
+    "diagnostic_repeats": 5,
+    "validation_exclude_probe": false,
+    "gate_interval": 10,
+    "gate_min_epoch": 30,
+    "gate_repeats": 3,
+    "student_init": "scratch",
+    "teacher_pretrained": true,
+    "amp": false,
+    "grad_clip": 1.0,
+    "model_scale": "deit",
+    "max_train_batches": 2,
+    "teacher_checkpoint": null,
+    "probe_enabled": false,
+    "stage1_run": null
+  },
+  "reference_initial_model_sha256": "1284dcfa406db55021620afb0d3bcbd923dc2597a3d122db018bf1633ae9a074",
+  "initial_model_sha256": "1284dcfa406db55021620afb0d3bcbd923dc2597a3d122db018bf1633ae9a074",
+  "epochs": [
+    {
+      "epoch": 1,
+      "loss": 2.299950361251831,
+      "validation": {
+        "accuracy": 0.3,
+        "macro_accuracy": 0.3,
+        "per_class_accuracy": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "samples": 20
+      }
+    },
+    {
+      "epoch": 2,
+      "loss": 2.8819541931152344,
+      "validation": {
+        "accuracy": 0.3,
+        "macro_accuracy": 0.3,
+        "per_class_accuracy": [
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          1.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "samples": 20
+      }
+    }
+  ],
+  "status": "PASS",
+  "comparison": "exact; no platform reference hash"
+}

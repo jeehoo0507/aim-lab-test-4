@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-03 — Stage 1b RRC / mixup
+
+- Stage 1b config·런처·출력·보고서를 분리하고 기존 train.py 루프에만 증강·soft target 처리를 확장했다. Stage 1 config·결과·원문 프로토콜·lockfile은 보존했다.
+- RRC bicubic + antialias, 동일 crop·flip의 nearest mask, 모델 RNG와 독립인 crop/mix, timm batch 방식 mixup/cutmix 및 단일 LS soft-label CE를 추가했다. teacher는 같은 혼합 입력을 받고 혼합 batch train accuracy는 기록하지 않는다.
+- seed 0 다섯 student를 병렬 실행한다. 각 KD는 같은 증강 CE 대비 91–100 val macro 평균 차이 ≥1.5pp로 판정하며, 다섯 run 종료 후 끝낸다. test 및 자동 seed 1 실행은 없다.
+- Mac 원본↔새 flip의 CPU 동등성 검증과 서버의 역사적 R1_ce 회귀 게이트를 분리했다. 서버는 기존 초기 checksum 및 첫 2에포치 loss·val macro 절대 오차 1e-6을 강제하며 실패 시 본 학습 전에 STOP을 기록한다.
+- 초기 Mac 검증에서 원본 코드 자체가 서버와 다른 checksum을 생성해 중단·보고했다. 사용자 승인 후 동일 플랫폼끼리 비교하도록 변경했으며 서버 기준 해시·학습 설정은 바꾸지 않았다.
+- 서버 실행·로그·보고서 업로드 명령은 README 상단과 docs/STAGE1B_RUNBOOK.md에 추가했다.
+
 ## 2026-09-30 — 이미 커밋된 보고서 업로드 재시도 수정
 
 - 보고서 변경이 없으면 커밋 단계를 건너뛰고 pull·push를 계속하도록 README·실행 안내를 수정했다.

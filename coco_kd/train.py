@@ -23,6 +23,8 @@ from .utils import (RunLock, autocast, compatible_config, cpu_state, load_checkp
 
 def run_path(cfg, role="student", method="student"):
     root = Path(cfg.output_root) / f"seed_{cfg.seed}"
+    if getattr(cfg, "stage1b_run", None):
+        return root / cfg.stage1b_run
     if cfg.stage1_run:
         return root / cfg.stage1_run
     return root / "teacher" if role == "teacher" else root / cfg.student_init / method
@@ -48,7 +50,11 @@ def optimizer_for(model, cfg):
 
 
 def distillation_loss(logits, labels, teacher_logits, cfg):
-    ce = F.cross_entropy(logits.float(), labels, label_smoothing=cfg.label_smoothing)
+    if labels.ndim == 2:
+        # Mixed targets already contain label smoothing.
+        ce = -(labels * F.log_softmax(logits.float(), dim=1)).sum(1).mean()
+    else:
+        ce = F.cross_entropy(logits.float(), labels, label_smoothing=cfg.label_smoothing)
     if teacher_logits is None:
         return ce, ce.detach(), logits.new_zeros(())
     t = cfg.temperature
@@ -77,6 +83,14 @@ def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method,
     model.train()
     seed_all(cfg.seed + epoch * 100003)
     mask_rng = torch.Generator(device=device).manual_seed(cfg.seed + epoch * 200003)
+    augmentation = getattr(cfg, "train_augmentation", "flip")
+    if augmentation not in ("flip", "rrc", "rrc_mix"):
+        raise ValueError("Invalid train_augmentation")
+    augmentation_digest = None
+    if augmentation != "flip":
+        import hashlib
+        dataset.set_epoch(epoch)
+        augmentation_digest = hashlib.sha256()
     batches = loader(dataset, cfg, train=True, epoch=epoch)
     total = min(len(batches), cfg.max_train_batches or len(batches))
     sums = {k: 0.0 for k in ("loss", "ce", "kd", "swaps", "added_foreground", "removed_foreground", "correct")}
@@ -87,6 +101,13 @@ def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method,
         if step >= total:
             break
         x, y, foreground = batch["image"].to(device), batch["label"].to(device), batch["foreground"].to(device)
+        mixed_target = None
+        if augmentation_digest is not None:
+            trace = {key: batch[key].tolist() for key in ("sample_id", "crop_box", "crop_flip")}
+            if augmentation == "rrc_mix":
+                from .stage1b_augmentation import mix_batch
+                x, mixed_target, trace["mix"] = mix_batch(x, y, cfg, epoch, step)
+            augmentation_digest.update(json.dumps(trace, sort_keys=True).encode())
         with autocast(cfg, device):
             logits, attention = model(x, return_attention=True)
             targets, indices, swaps = None, None, None
@@ -98,7 +119,7 @@ def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method,
                 loss = F.cross_entropy(logits.float(), y, label_smoothing=cfg.teacher_label_smoothing)
                 ce, kd = loss.detach(), logits.new_zeros(())
             else:
-                loss, ce, kd = distillation_loss(logits, y, targets, cfg)
+                loss, ce, kd = distillation_loss(logits, y if mixed_target is None else mixed_target, targets, cfg)
         if not torch.isfinite(loss):
             raise FloatingPointError(f"Non-finite loss epoch {epoch}, batch {step}")
         start = step // cfg.accumulation_steps * cfg.accumulation_steps
@@ -118,7 +139,8 @@ def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method,
             optimizer.zero_grad(set_to_none=True)
         for key, value in (("loss", loss), ("ce", ce), ("kd", kd)):
             sums[key] += value.item() * len(x)
-        sums["correct"] += (logits.argmax(1) == y).sum().item()
+        if mixed_target is None:
+            sums["correct"] += (logits.argmax(1) == y).sum().item()
         if indices is not None:
             raw = binary_mask(attention.detach().topk(98, 1).indices)
             selected = binary_mask(indices)
@@ -129,8 +151,14 @@ def train_epoch(model, teacher, dataset, optimizer, scaler, cfg, device, method,
         seen += len(x)
     if device.type == "cuda":
         torch.cuda.synchronize(device)
-    return {**{k: v / seen for k, v in sums.items()}, "samples": seen, "optimizer_updates": updates,
-            "amp_skipped_updates": skipped, "seconds": time.monotonic() - started}
+    result = {**{k: v / seen for k, v in sums.items()}, "samples": seen, "optimizer_updates": updates,
+              "amp_skipped_updates": skipped, "seconds": time.monotonic() - started}
+    if augmentation_digest is not None:
+        result["augmentation_sha256"] = augmentation_digest.hexdigest()
+    if augmentation == "rrc_mix":
+        result["correct"] = None
+        result["accuracy_definition"] = "not recorded for mixed targets"
+    return result
 
 
 def train(cfg, role="student", method="student", stop_after=None):
@@ -138,6 +166,9 @@ def train(cfg, role="student", method="student", stop_after=None):
         raise ValueError("Unknown role or method")
     if cfg.stage1_run:
         from .stage1 import validate_training_run
+        validate_training_run(cfg, role, method)
+    if getattr(cfg, "stage1b_run", None):
+        from .stage1b import validate_training_run
         validate_training_run(cfg, role, method)
     if method == "random_anneal_10" and cfg.model_scale != "debug" and cfg.epochs != 100:
         raise ValueError("random_anneal_10 is a fixed 100-epoch protocol; use a separate design for other lengths")
@@ -151,6 +182,9 @@ def _train(cfg, role, method, directory, stop_after):
     device = setup_device(cfg)
     digest = metadata_hash(cfg)
     code_hash = source_fingerprint()
+    if getattr(cfg, "stage1b_run", None):
+        from .stage1b import training_fingerprint
+        code_hash = training_fingerprint()
     teacher_file = (Path(cfg.teacher_checkpoint) if cfg.teacher_checkpoint else run_path(cfg, "teacher") / "best.pt") if role == "student" and method != "ce" else None
     teacher_hash = sha256(teacher_file) if teacher_file else None
     saved_config = directory / "config.json"
@@ -183,6 +217,10 @@ def _train(cfg, role, method, directory, stop_after):
         from .stage1 import INITIAL_SHA256
         if initial_hash != INITIAL_SHA256:
             raise ValueError(f"Stage 1 initial_model_sha256 mismatch: {initial_hash}")
+    if getattr(cfg, "stage1b_run", None):
+        from .stage1 import INITIAL_SHA256
+        if initial_hash != INITIAL_SHA256:
+            raise ValueError(f"Stage 1b initial_model_sha256 mismatch: {initial_hash}")
     teacher = None
     if teacher_file:
         source = load_checkpoint(teacher_file)
@@ -204,6 +242,9 @@ def _train(cfg, role, method, directory, stop_after):
         gate_state = state.get("gate_state", gate_state)
         print(f"RESUME {directory} after epoch {start}", flush=True)
     train_data = CocoSubset(cfg.data_root, "train", train=True, threshold=cfg.foreground_threshold)
+    if getattr(cfg, "train_augmentation", "flip") != "flip":
+        from .stage1b_augmentation import AugmentedCocoSubset
+        train_data = AugmentedCocoSubset(cfg.data_root, seed=cfg.seed, threshold=cfg.foreground_threshold)
     validation = CocoSubset(cfg.data_root, "val_fit" if cfg.validation_exclude_probe else "val",
                             threshold=cfg.foreground_threshold)
     epochs = cfg.teacher_epochs if role == "teacher" else cfg.epochs
@@ -285,6 +326,8 @@ def _train(cfg, role, method, directory, stop_after):
 
 
 def evaluate_test(cfg, role="student", method="student"):
+    if hasattr(cfg, "train_augmentation"):
+        raise ValueError("Stage 1b forbids test evaluation")
     if cfg.stage1_run:
         raise ValueError("Stage 1 forbids test evaluation")
     directory = run_path(cfg, role, method)

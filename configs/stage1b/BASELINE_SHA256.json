@@ -1,0 +1,27 @@
+{
+  "commit": "c5a826d",
+  "train_source_sha256": "10b22334497c8381d4ab10e33fcec2ce1edc624dc185b5c590f08ea0db212e84",
+  "files": {
+    "reports/stage1/seed_0/LS01_T4/config.json": "6d8efab70c51ee925ed188368f52851e3b62fd3895c0eba4a8a55ca57c90d904",
+    "reports/stage1/seed_0/LS01_T4/history.json": "d655a0a272c31408b5e45e9ff78b2340aa3dc7266ec2a4bce3fd92882a19c882",
+    "reports/stage1/seed_0/LS01_T4/result.json": "9bc5edf7db67d684ac7fbf82b62fb3d43fa2fcbe3de24d7893a247861cbb6a24",
+    "reports/stage1/seed_0/LS01_T4/run_start.json": "dfef184fcf41a7223c2ac09f27a32c5365a54faef82d2e77788c31f69a34bbf6",
+    "reports/stage1/seed_0/LS0_T1/config.json": "21353dfe818802ea65c1b3e120c6e6753d9d353d47bf1d66cd525988170632ef",
+    "reports/stage1/seed_0/LS0_T1/history.json": "fc5d4379c41ce389ecb578cdd06794e9d8bc4b2a7ddb33861e56646c2bd605a6",
+    "reports/stage1/seed_0/LS0_T1/result.json": "9aecbefba4ccb971fdd9eb0e2fa95ad72b6d0b6dcf2ddb709e74af6f9f3a343b",
+    "reports/stage1/seed_0/LS0_T1/run_start.json": "3d05ae4877dff2caa4cac1a0aa96905f63fb46f0bfa5f7a14b409da023aaa65f",
+    "reports/stage1/seed_0/LS0_T4/config.json": "dbcae2bd532590718284be0d03731211c510aec008164940f2b962ad212d0874",
+    "reports/stage1/seed_0/LS0_T4/history.json": "677c6ba1d594df0b2c82ba9f77a1500ff296f7a01a7cff8c2a2a8bcbdd08167a",
+    "reports/stage1/seed_0/LS0_T4/result.json": "1c31d2205ccaf0560cb3b35414f40450effcf7b1f7e5c6cec6e14df88a220ddb",
+    "reports/stage1/seed_0/LS0_T4/run_start.json": "3d05ae4877dff2caa4cac1a0aa96905f63fb46f0bfa5f7a14b409da023aaa65f",
+    "reports/stage1/seed_0/R1_ce/config.json": "44912bc755d4ad20a4abec4272a8e8696a2f68728560f0949199cf6702681f4c",
+    "reports/stage1/seed_0/R1_ce/history.json": "71a2f46243b744497ec7fa22a745d90a511f2c34608946a03e78e79e2a62e0f3",
+    "reports/stage1/seed_0/R1_ce/result.json": "72d3bd4705b4c92aa6448d744f609284f56c453f35d547e981b57ae47116efc1",
+    "reports/stage1/seed_0/R1_ce/run_start.json": "ee3263f484547d7703bb054c20109159cef607d951642c5f02cbc5fab2c89f74",
+    "reports/stage1/seed_0/R2_full_LS01best_T1/config.json": "ebb56c6e94dbc56e621a296de5c035edd9d5bc0cb971412d876a23bc970ca72d",
+    "reports/stage1/seed_0/R2_full_LS01best_T1/history.json": "3b3442c84bc5a6605e09f96598c2e3a02ce79fd07836b48e972f49b184565d0e",
+    "reports/stage1/seed_0/R2_full_LS01best_T1/result.json": "07fda7ee2baa0e8d4623ec80d48bbb0a7299ac049f965618f74c8510075fe779",
+    "reports/stage1/seed_0/R2_full_LS01best_T1/run_start.json": "014c0555feb65e5353e5cf50496dace58df56c6755ba1fb6c9ff75d518b1e84d",
+    "reports/stage1/seed_0/teacher_checks.json": "75423b959872646b2e45fa3829629b16dc00f03b6d622e8be864766f4edf4f79"
+  }
+}
