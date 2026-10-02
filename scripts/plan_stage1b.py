@@ -1,4 +1,4 @@
-"""Stage 1b launcher: exactly five student runs; never writes Stage 1 outputs."""
+"""Stage 1b launcher: new teacher followed by seven parallel student runs; keeps historical Stage 1 results unchanged."""
 import argparse
 import json
 import os
@@ -70,12 +70,12 @@ def run_batch():
 
 
 def execute(jobs, verify_only=False):
-    if jobs != 5:
-        raise ValueError('Stage 1b requires --jobs 5; stop and ask before changing')
+    if jobs != 7:
+        raise ValueError('Stage 1b requires --jobs 7; stop and ask before changing')
     if (OUTPUT / 'STOP.json').exists():
         raise ValueError('Stage 1b STOP recorded; stop and ask before retry')
     require_tests()
-    assets = check_assets()
+    assets = check_assets(require_teacher=False)
     read_baseline_rows()
     config_audit()
     import torch
@@ -85,10 +85,14 @@ def execute(jobs, verify_only=False):
     setup_device(read_config('ce_rrc'))
     write_json(OUTPUT / 'preflight.json', {'assets': assets, 'runtime': runtime(),
                'gpu': torch.cuda.get_device_name(), 'jobs': jobs, 'validation_sha256': validation_fingerprint()})
+    from scripts.check_stage1b_teacher import train_and_check
+    train_and_check()
+    config_audit()
     from scripts.verify_stage1b_flip import verify
     verify()
     if verify_only:
         return
+    torch.cuda.empty_cache()
     run_batch()
     result = summary()
     if result['decision'] != 'DONE':
@@ -98,8 +102,8 @@ def execute(jobs, verify_only=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('test', 'plan', 'verify-flip', 'run', 'summary', 'worker'))
-    parser.add_argument('--jobs', type=int, default=5)
+    parser.add_argument('command', choices=('prepare', 'test', 'plan', 'verify-flip', 'run', 'summary', 'worker'))
+    parser.add_argument('--jobs', type=int, default=7)
     parser.add_argument('--name', choices=RUNS)
     args = parser.parse_args()
     os.chdir(ROOT)
@@ -108,18 +112,24 @@ def main():
             parser.error('worker requires --name')
         from coco_kd.train import train
         train(read_config(args.name), role='student', method=method(args.name))
-    elif args.command == 'test':
-        with RunLock(OUTPUT / '.stage1b.lock'):
-            run_tests()
-    elif args.command == 'plan':
-        config_audit()
-        print(REPORT / 'CONFIG_AUDIT.md')
-    elif args.command == 'summary':
-        print(summary()['decision'])
     else:
         with RunLock(OUTPUT / '.stage1b.lock'):
             try:
-                execute(args.jobs, verify_only=args.command == 'verify-flip')
+                if (OUTPUT / 'STOP.json').exists() and args.command not in ('plan', 'summary'):
+                    raise ValueError('Stage 1b STOP recorded; stop and ask before retry')
+                if args.command == 'prepare':
+                    # Reuse the exact Stage 1 preparation entry point and both strict hashes.
+                    from scripts.plan_stage1 import prepare_data
+                    prepare_data()
+                elif args.command == 'test':
+                    run_tests()
+                elif args.command == 'plan':
+                    config_audit()
+                    print(REPORT / 'CONFIG_AUDIT.md')
+                elif args.command == 'summary':
+                    print(summary()['decision'])
+                else:
+                    execute(args.jobs, verify_only=args.command == 'verify-flip')
             except Exception as error:
                 if not (OUTPUT / 'STOP.json').exists():
                     write_json(OUTPUT / 'STOP.json', {'decision': 'STOP_ERROR', 'reason': str(error)})

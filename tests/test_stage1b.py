@@ -48,7 +48,7 @@ def test_stage1b_required_field_and_fixed_recipes(tmp_path):
         assert changes <= {'stage1_run', 'output_root', 'teacher_checkpoint', 'temperature'}
         assert c.stage1_run is None and c.stage1b_run == name
         assert c.temperature == (4. if '_T4' in name else 1.)
-        assert c.train_augmentation == ('rrc_mix' if name.endswith('_mix') else 'rrc')
+        assert c.train_augmentation == ('flip' if name.endswith('_flip') else 'rrc_mix' if name.endswith('_mix') else 'rrc')
         assert c.teacher_checkpoint == (None if name.startswith('ce_') else stage1b.TEACHER)
         with pytest.raises(ValueError, match='forbids test'):
             evaluate_test(c)
@@ -209,11 +209,11 @@ def test_augmented_resume_matches_uninterrupted(tmp_path):
     assert all(a['train']['augmentation_sha256'] == b['train']['augmentation_sha256'] for a, b in zip(x, y))
 
 
-def test_stage1b_gate_boundaries_and_all_five_completion():
-    rows = {name: {'mean_pp': v} for name, v in zip(stage1b.RUNS, [60., 61.5, 61.49, 63., 64.5])}
+def test_stage1b_gate_boundaries_and_all_seven_completion():
+    rows = {name: {'mean_pp': v} for name, v in zip(stage1b.RUNS, [60., 61.5, 60., 61.5, 61.49, 63., 64.5])}
     result = stage1b.decisions(rows)
     assert result['decision'] == 'DONE'
-    assert [v['status'] for v in result['runs'].values()] == ['PASS', 'FAIL', 'PASS']
+    assert [v['status'] for v in result['runs'].values()] == ['PASS', 'PASS', 'FAIL', 'PASS']
     assert result['runs']['LS0_T4_rrc_mix']['baseline'] == 'ce_rrc_mix'
     rows.pop('LS0_T4_rrc_mix')
     assert stage1b.decisions(rows)['decision'] == 'WAIT_RUNS'
@@ -231,11 +231,11 @@ def test_baseline_and_assets_are_pinned_and_read_only(tmp_path, monkeypatch):
     assert p.read_text() == 'wrong'
 
 
-def test_stage1b_report_only_writes_own_reports_and_five_curves(tmp_path, monkeypatch):
+def test_stage1b_report_only_writes_own_reports_and_seven_curves(tmp_path, monkeypatch):
     from coco_kd import stage1b_report as report
     before = {p: sha256(p) for p in Path('reports/stage1').rglob('*') if p.is_file()}
     rows = {}
-    for name, value in zip(stage1b.RUNS, [.60, .62, .615, .63, .645]):
+    for name, value in zip(stage1b.RUNS, [.60, .615, .60, .62, .615, .63, .645]):
         history = [{'epoch': e, 'validation': {'macro_accuracy': value}} for e in range(1, 101)]
         rows[name] = {'mean_pp': value*100, 'history': history}
         for filename in ('config.json', 'result.json', 'run_start.json'):
@@ -249,16 +249,24 @@ def test_stage1b_report_only_writes_own_reports_and_five_curves(tmp_path, monkey
     monkeypatch.setattr(report, 'config_audit', lambda: None)
     monkeypatch.setattr(report, 'read_rows', lambda: rows)
     monkeypatch.setattr(report, 'run_dir', lambda name: tmp_path / 'out/seed_0' / name)
+    write_json(tmp_path / 'out/flip_verification.json', {'status': 'PASS', 'differences': [
+        {'epoch': 1, 'metric': 'train loss', 'reference': 2., 'actual': 2.1, 'delta': .1, 'within_1e6': False}]})
+    metrics = {'accuracy': .99, 'macro_accuracy': .99, 'kl_to_ls': .03,
+               'nontarget_entropy@T1': .2, 'nontarget_entropy@T4': .7}
+    write_json(tmp_path / 'out/teacher_checks.json', {'status': 'PASS', 'assets': {'teacher_sha256': 'new-sha'},
+                                                   'train': metrics, 'val': metrics})
     result = report.summary()
     assert result['decision'] == 'DONE'
     text = (dest / 'SUMMARY.md').read_text()
     assert all(name in text for name in stage1b.RUNS)
+    assert 'new-sha' in text and '+0.1000000000' in text and 'False' in text
+    assert '60.2100' in text and '0.03000000' in text
     assert '60.7800' in text and (dest / 'val_curves.png').stat().st_size > 0
     assert not list(dest.rglob('test_metrics.json'))
     assert all(sha256(p) == digest for p, digest in before.items())
 
 
-def test_all_five_launch_before_poll_and_failure_stops_peers(tmp_path, monkeypatch):
+def test_all_seven_launch_before_poll_and_failure_stops_peers(tmp_path, monkeypatch):
     from scripts import plan_stage1b as plan
     monkeypatch.setattr(plan, 'OUTPUT', tmp_path)
     launched = []
@@ -268,7 +276,7 @@ def test_all_five_launch_before_poll_and_failure_stops_peers(tmp_path, monkeypat
             self.code, self.pid, self.terminated = code, len(launched) + 1, False
 
         def poll(self):
-            assert len(launched) == 5  # Concurrent launch, not five serial jobs.
+            assert len(launched) == 7  # Concurrent launch, not seven serial jobs.
             return self.code
 
         def terminate(self):
@@ -303,7 +311,7 @@ def test_all_gate_failures_still_finish_normally(tmp_path, monkeypatch, capsys):
     from coco_kd import utils
     monkeypatch.setattr(plan, 'OUTPUT', tmp_path)
     monkeypatch.setattr(plan, 'require_tests', lambda: None)
-    monkeypatch.setattr(plan, 'check_assets', lambda: {})
+    monkeypatch.setattr(plan, 'check_assets', lambda **kwargs: {})
     monkeypatch.setattr(plan, 'read_baseline_rows', lambda: {})
     monkeypatch.setattr(plan, 'config_audit', lambda: None)
     monkeypatch.setattr(utils, 'setup_device', lambda cfg: None)
@@ -311,14 +319,16 @@ def test_all_gate_failures_still_finish_normally(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(torch.version, 'cuda', '12.4')
     monkeypatch.setattr(torch.cuda, 'get_device_name', lambda: 'mock GPU')
     events = []
+    from scripts import check_stage1b_teacher
+    monkeypatch.setattr(check_stage1b_teacher, 'train_and_check', lambda: events.append('teacher'))
     monkeypatch.setattr(verification, 'verify', lambda: events.append('verify'))
-    monkeypatch.setattr(plan, 'run_batch', lambda: events.append('five runs'))
+    monkeypatch.setattr(plan, 'run_batch', lambda: events.append('seven runs'))
     monkeypatch.setattr(plan, 'summary', lambda: {'decision': 'DONE', 'runs': {k: {'status': 'FAIL'} for k in stage1b.PAIRS}})
-    assert plan.execute(5) is None
-    assert events == ['verify', 'five runs']
+    assert plan.execute(7) is None
+    assert events == ['teacher', 'verify', 'seven runs']
     assert 'STAGE1B_DONE:' in capsys.readouterr().out
     assert not (tmp_path / 'STOP.json').exists()
-    with pytest.raises(ValueError, match='--jobs 5'):
+    with pytest.raises(ValueError, match='--jobs 7'):
         plan.execute(4)
 
 
@@ -364,14 +374,17 @@ def test_server_flip_gate_exact_hash_and_absolute_tolerance():
             bad['epochs'][1]['validation'][key] += 1.1e-6
         with pytest.raises(ValueError, match='beyond 1e-6'):
             compare_server_record(bad, baseline)
+        differences = compare_server_record(bad, baseline, report_only=True)
+        assert any(not row['within_1e6'] for row in differences)
+        assert len(differences) == 4
     with pytest.raises(ValueError, match='checksum'):
-        compare_server_record({**record, 'initial_model_sha256': 'Mac-local-only'}, baseline)
+        compare_server_record({**record, 'initial_model_sha256': 'Mac-local-only'}, baseline, report_only=True)
     with pytest.raises(ValueError, match='epochs 1 and 2'):
         compare_server_record({**record, 'epochs': record['epochs'][:1]}, baseline)
     nan = deepcopy(record)
     nan['epochs'][0]['loss'] = float('nan')
-    with pytest.raises(ValueError, match='beyond 1e-6'):
-        compare_server_record(nan, baseline)
+    with pytest.raises(ValueError, match='Non-finite'):
+        compare_server_record(nan, baseline, report_only=True)
 
 
 def test_cpu_parity_stamp_cannot_authorize_server_runs(tmp_path, monkeypatch):
@@ -391,13 +404,15 @@ def test_failed_server_flip_gate_records_stop_without_starting_runs(tmp_path, mo
     monkeypatch.setattr(sys, 'argv', ['plan_stage1b', 'run'])
     monkeypatch.setattr(plan, 'summary', lambda: {})
     monkeypatch.setattr(plan, 'require_tests', lambda: None)
-    monkeypatch.setattr(plan, 'check_assets', lambda: {})
+    monkeypatch.setattr(plan, 'check_assets', lambda **kwargs: {})
     monkeypatch.setattr(plan, 'read_baseline_rows', lambda: {})
     monkeypatch.setattr(plan, 'config_audit', lambda: None)
     monkeypatch.setattr(utils, 'setup_device', lambda cfg: None)
     monkeypatch.setattr(torch, '__version__', '2.5.1+cu124')
     monkeypatch.setattr(torch.version, 'cuda', '12.4')
     monkeypatch.setattr(torch.cuda, 'get_device_name', lambda: 'mock A5000')
+    from scripts import check_stage1b_teacher
+    monkeypatch.setattr(check_stage1b_teacher, 'train_and_check', lambda: None)
     launched = []
     monkeypatch.setattr(plan, 'run_batch', lambda: launched.append(True))
 
@@ -409,3 +424,149 @@ def test_failed_server_flip_gate_records_stop_without_starting_runs(tmp_path, mo
         plan.main()
     assert not launched
     assert json.loads((tmp_path / 'STOP.json').read_text())['decision'] == 'STOP_ERROR'
+
+
+def test_new_teacher_recipe_matches_stage1_without_historical_asset():
+    cfg = stage1b.read_config('T_LS0')
+    old = stage1_recipe(0, 'T_LS0').to_dict()
+    assert {k for k in old if old[k] != cfg.to_dict()[k]} == {'stage1_run', 'output_root'}
+    assert cfg.train_augmentation == 'flip' and cfg.teacher_label_smoothing == 0.
+    assert cfg.teacher_epochs == 30 and cfg.teacher_pretrained
+    assert stage1b.TEACHER == 'outputs/stage1b_aug/seed_0/T_LS0/last.pt'
+    assert all(stage1b.read_config(k).teacher_checkpoint == stage1b.TEACHER for k in stage1b.PAIRS)
+
+
+def test_new_teacher_actual_hash_and_output_check_are_required(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(stage1b, 'MANIFEST_SHA256', 'irrelevant')
+    monkeypatch.setattr(stage1b, 'require_hash', lambda *args: 'verified-manifest')
+    monkeypatch.setattr(stage1b, 'validation_fingerprint', lambda: 'source')
+    assert stage1b.check_assets(require_teacher=False) == {'manifest_sha256': 'verified-manifest'}
+    teacher = Path(stage1b.TEACHER)
+    teacher.parent.mkdir(parents=True)
+    teacher.write_bytes(b'new server checkpoint')
+    assets = stage1b.check_assets()
+    assert assets['teacher_sha256'] == sha256(teacher)
+    record = {'status': 'PASS', 'assets': assets, 'runtime': stage1b.runtime(),
+              'validation_sha256': 'source', 'train': {'kl_to_ls': .02}}
+    path = stage1b.OUTPUT / 'teacher_checks.json'
+    write_json(path, record)
+    assert stage1b.require_teacher_checks() == record
+    write_json(path, {**record, 'train': {'kl_to_ls': .01999}})
+    with pytest.raises(ValueError, match='teacher output'):
+        stage1b.require_teacher_checks()
+    write_json(path, record)
+    teacher.write_bytes(b'changed after measurement')
+    with pytest.raises(ValueError, match='checkpoint changed'):
+        stage1b.require_teacher_checks()
+
+
+@pytest.mark.parametrize('kl,passes', [(.02, True), (.01999, False)])
+def test_teacher_training_then_shared_output_measurement(tmp_path, monkeypatch, kl, passes):
+    from scripts import check_stage1b_teacher as check
+    from coco_kd import train as training, models
+    cfg = stage1b.read_config('T_LS0')
+    monkeypatch.setattr(check, 'OUTPUT', tmp_path)
+    monkeypatch.setattr(check, 'require_tests', lambda: None)
+    monkeypatch.setattr(check, 'check_assets', lambda: {'teacher_sha256': 'actual-sha'})
+    monkeypatch.setattr(check, 'sha256', lambda _: 'actual-sha')
+    monkeypatch.setattr(check, 'validation_fingerprint', lambda: 'validation')
+    monkeypatch.setattr(check, 'training_fingerprint', lambda: 'code')
+    monkeypatch.setattr(check, 'setup_device', lambda cfg: torch.device('cpu'))
+    model = torch.nn.Linear(1, 10)
+    events = []
+    monkeypatch.setattr(training, 'train', lambda c, **kw: events.append(('train', c.to_dict(), kw)))
+    monkeypatch.setattr(models, 'build_model', lambda *args: model)
+    monkeypatch.setattr(check, 'load_checkpoint', lambda _: {
+        'role': 'teacher', 'epoch': 30, 'metadata_sha256': stage1b.MANIFEST_SHA256,
+        'config': cfg.to_dict(), 'code_sha256': 'code', 'model': model.state_dict()})
+
+    def measurement(model, cfg, split, device):
+        events.append(split)
+        return {'kl_to_ls': kl if split == 'train' else .001}
+
+    monkeypatch.setattr(check, 'measure', measurement)
+    if passes:
+        assert check.train_and_check()['status'] == 'PASS'
+    else:
+        with pytest.raises(ValueError, match='kl_to_ls'):
+            check.train_and_check()
+    assert events[0] == ('train', cfg.to_dict(), {'role': 'teacher', 'method': 'teacher'})
+    assert events[1:] == ['train', 'val']
+    record = json.loads((tmp_path / 'teacher_checks.json').read_text())
+    assert record['status'] == ('PASS' if passes else 'FAIL')
+    assert record['assets']['teacher_sha256'] == 'actual-sha'
+
+
+@pytest.mark.parametrize('command,stage', [('prepare', 'prepare'), ('test', 'test'), ('run', 'teacher')])
+def test_each_failed_stage_records_stop_and_never_launches_students(tmp_path, monkeypatch, command, stage):
+    import sys
+    from scripts import plan_stage1b as plan, plan_stage1, check_stage1b_teacher
+    from coco_kd import utils
+    monkeypatch.setattr(plan, 'OUTPUT', tmp_path)
+    monkeypatch.setattr(sys, 'argv', ['plan_stage1b', command])
+    monkeypatch.setattr(plan, 'summary', lambda: {})
+    monkeypatch.setattr(plan, 'require_tests', lambda: None)
+    monkeypatch.setattr(plan, 'check_assets', lambda **kw: {})
+    monkeypatch.setattr(plan, 'read_baseline_rows', lambda: {})
+    monkeypatch.setattr(plan, 'config_audit', lambda: None)
+    monkeypatch.setattr(utils, 'setup_device', lambda cfg: None)
+    monkeypatch.setattr(torch, '__version__', '2.5.1+cu124')
+    monkeypatch.setattr(torch.version, 'cuda', '12.4')
+    monkeypatch.setattr(torch.cuda, 'get_device_name', lambda: 'new GPU')
+    launched = []
+    monkeypatch.setattr(plan, 'run_batch', lambda: launched.append(True))
+
+    def fail():
+        raise ValueError(f'{stage} failed')
+
+    monkeypatch.setattr(plan_stage1, 'prepare_data', fail)
+    monkeypatch.setattr(plan, 'run_tests', fail)
+    monkeypatch.setattr(check_stage1b_teacher, 'train_and_check', fail)
+    with pytest.raises(ValueError, match=f'{stage} failed'):
+        plan.main()
+    assert not launched
+    assert json.loads((tmp_path / 'STOP.json').read_text())['reason'] == f'{stage} failed'
+
+
+def test_student_initial_hash_is_strict_before_epoch_and_teacher_is_exempt(tmp_path):
+    synthetic_data(tmp_path / 'data')
+    cfg = replace(debug_config(tmp_path, 'flip'), stage1b_run='ce_flip')
+    directory = tmp_path / 'student'
+    with pytest.raises(ValueError, match='initial_model_sha256 mismatch'):
+        _train(cfg, 'student', 'ce', directory, None)
+    assert (directory / 'run_start.json').is_file()
+    assert not (directory / 'history.json').exists()
+    teacher = replace(cfg, stage1b_run='T_LS0', teacher_epochs=1)
+    _train(teacher, 'teacher', 'teacher', tmp_path / 'teacher', None)
+    assert load_checkpoint(tmp_path / 'teacher/last.pt')['epoch'] == 1
+
+
+def test_missing_uv_bootstrap_is_unmanaged_and_clone_local(tmp_path):
+    import os
+    import shutil
+    import subprocess
+    clone = tmp_path / 'fresh clone'
+    clone.mkdir()
+    shutil.copyfile(stage1b.ROOT / 'setup_stage1b.sh', clone / 'setup_stage1b.sh')
+    tools = tmp_path / 'bin'
+    tools.mkdir()
+    for command in ('bash', 'sh', 'dirname', 'mkdir', 'date', 'tee', 'chmod', 'cat', 'env'):
+        (tools / command).symlink_to(shutil.which(command))
+    curl = tools / 'curl'
+    curl.write_text('''#!/bin/sh
+cat > "$4" <<'INSTALLER'
+printf '%s\\n' "$UV_UNMANAGED_INSTALL" "$UV_NO_MODIFY_PATH" > "$PWD/install-options.txt"
+mkdir -p "$UV_UNMANAGED_INSTALL"
+cat > "$UV_UNMANAGED_INSTALL/uv" <<'UV'
+#!/bin/sh
+env > "$PWD/environment.txt"
+UV
+chmod +x "$UV_UNMANAGED_INSTALL/uv"
+INSTALLER
+''')
+    curl.chmod(0o755)
+    subprocess.run([str(tools / 'bash'), 'setup_stage1b.sh', 'install'], cwd=clone,
+                   env=dict(os.environ, PATH=str(tools)), check=True, capture_output=True)
+    assert (clone / 'install-options.txt').read_text().splitlines() == [str(clone / '.cache/uv-bin'), '1']
+    assert (clone / '.cache/uv-bin/uv').is_file()

@@ -23,9 +23,11 @@ export PYTHONNOUSERSITE=1
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-2}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-2}"
 mkdir -p logs "$MPLCONFIGDIR" "$TMPDIR"
+export PATH="$PWD/.cache/uv-bin:$PATH"
 if ! command -v uv >/dev/null 2>&1; then
-  echo "uv가 없습니다. 기존 서버에서 사용한 uv 실행 경로를 PATH에 추가해 주세요. sudo는 사용하지 않습니다."
-  exit 1
+  # Unmanaged installer neither edits shell profiles nor installs outside this clone.
+  curl -LsSf https://astral.sh/uv/install.sh -o "$TMPDIR/uv-install.sh"
+  UV_UNMANAGED_INSTALL="$PWD/.cache/uv-bin" UV_NO_MODIFY_PATH=1 sh "$TMPDIR/uv-install.sh"
 fi
 uv python install 3.11 --no-bin
 uv sync --frozen --managed-python --python 3.11
@@ -37,6 +39,6 @@ echo "Project: $PWD"
 echo "Log: $PWD/$task_log"
 case "$mode" in
   install) ;;
-  test|plan|verify-flip|run|summary) .venv/bin/python -u -m scripts.plan_stage1b "$mode" "$@" ;;
-  *) echo "Usage: bash setup_stage1b.sh [install|test|plan|verify-flip|run|summary]"; exit 2 ;;
+  prepare|test|plan|verify-flip|run|summary) .venv/bin/python -u -m scripts.plan_stage1b "$mode" "$@" ;;
+  *) echo "Usage: bash setup_stage1b.sh [install|prepare|test|plan|verify-flip|run|summary]"; exit 2 ;;
 esac

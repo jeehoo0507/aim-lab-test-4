@@ -1,31 +1,38 @@
 # AIM Lab 실험 3 · Stage 1 — KD 게이트
 
-## Stage 1b — RRC / mixup 추가 실험
+## Stage 1b — 새 서버: 클론부터 7개 병렬 실행
 
-기존 Stage 1 완료 서버에서 아래를 실행한다. teacher는 기존 `T_LS0/last.pt`를 그대로 사용하고, 결과는 `outputs/stage1b_aug/` 및 `reports/stage1b/`에만 저장한다.
+기존 데이터·teacher가 없는 새 CUDA 서버용이다. 원하는 작업 디렉터리에서 아래를 실행한다. 설치 파일·캐시·데이터·가중치는 클론 안에 저장하며 셸 설정을 수정하지 않는다. 기존 uv가 없으면 uv도 클론 안에 설치한다.
+
+**1단계: 클론 → 데이터 준비 → 테스트 → 감사표**
 
 ```bash
-cd ~/Documents/aim-lab-test-4 &&
-git pull --ff-only origin stage1-ls-gate &&
+git clone --branch stage1-ls-gate https://github.com/jeehoo0507/aim-lab-test-4.git aim-lab-test-4 &&
+cd aim-lab-test-4 &&
+bash setup_stage1b.sh prepare &&
 bash setup_stage1b.sh test &&
 bash setup_stage1b.sh plan &&
 cat reports/stage1b/CONFIG_AUDIT.md
 ```
 
-감사표 확인 후 학습 실행:
+기존 `stage1-prepare` 구현과 manifest SHA 검사를 그대로 사용한다. teacher는 아직 없으므로 감사표의 teacher SHA는 학습 후 갱신된다.
+
+**2단계: 감사표 확인 후, 같은 클론 폴더에서 학습 실행**
 
 ```bash
-if cd ~/Documents/aim-lab-test-4 && mkdir -p logs; then
-  nohup bash setup_stage1b.sh run --jobs 5 > logs/stage1b_launcher.log 2>&1 < /dev/null &
+if test -f setup_stage1b.sh && mkdir -p logs; then
+  nohup bash setup_stage1b.sh run --jobs 7 > logs/stage1b_launcher.log 2>&1 < /dev/null &
   tail -f logs/stage1b_launcher.log
 fi
 ```
 
-먼저 **새 flip 경로의 2에포치 서버 회귀 게이트**를 자동 실행한다. 초기 checksum은 기존 Stage 1 값과 정확히 일치하고, epoch 1·2 train loss·val macro는 기존 기록과 절대 오차 `1e-6` 이내여야 한다. 실패하면 STOP을 기록하고 다섯 run을 시작하지 않는다. 통과하면 **student 5개 병렬 → 보고서 → 정상 종료**이며 `--stop` 옵션이나 자동 seed 1 실행은 없다.
+**새 T_LS0 teacher 30에포치 → train 출력 점검(kl_to_ls ≥0.02) → flip 초기 checksum 엄격 검사·2에포치 차이 기록 → student 7개 병렬 → SUMMARY → 종료** 순서다. 새 teacher의 실제 SHA를 기록·검증하며 과거 teacher SHA는 요구하지 않는다. 새 서버의 epoch 1·2 loss/val 차이는 report-only다. 각 단계 오류는 STOP을 기록한다.
 
-[Stage 1b 전체 실행·로그·결과 업로드 명령](docs/STAGE1B_RUNBOOK.md) · [Stage 1b 결과](reports/stage1b/SUMMARY.md)
+7개 run: `ce_flip`, `LS0_T4_flip`, `ce_rrc`, `LS0_T1_rrc`, `LS0_T4_rrc`, `ce_rrc_mix`, `LS0_T4_rrc_mix`. 모든 KD는 같은 새 teacher의 `last.pt`를 사용한다. 기존 Stage 1 보고서는 보존한다.
 
-아래 Stage 1 안내는 기존 실험 기록이다. Stage 1b에는 위 전용 명령을 사용한다.
+`Ctrl+C`는 `tail` 로그 보기만 종료한다. 학습은 계속된다. [전체 실행·진행 확인·결과 업로드 명령](docs/STAGE1B_RUNBOOK.md) · [Stage 1b 결과](reports/stage1b/SUMMARY.md)
+
+아래 Stage 1 안내는 기존 실험 기록이다. 새 서버 Stage 1b에는 위 전용 명령을 사용한다.
 
 ## 먼저 seed 0까지만 실행
 

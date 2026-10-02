@@ -11,20 +11,19 @@ from .utils import sha256, source_fingerprint, write_json
 OUTPUT = Path('outputs/stage1b_aug')
 REPORT = Path('reports/stage1b')
 BASELINE_COMMIT = 'c5a826d'
-TEACHER = 'outputs/stage1_ls_gate/seed_0/T_LS0/last.pt'
-TEACHER_SHA256 = '6e31acca311a19b307a722008ef6c7f65259445ec04217f7d86f8486faf293d6'
-RUNS = ('ce_rrc', 'LS0_T1_rrc', 'LS0_T4_rrc', 'ce_rrc_mix', 'LS0_T4_rrc_mix')
-PAIRS = {'LS0_T1_rrc': 'ce_rrc', 'LS0_T4_rrc': 'ce_rrc', 'LS0_T4_rrc_mix': 'ce_rrc_mix'}
+TEACHER = str(OUTPUT / 'seed_0/T_LS0/last.pt')
+RUNS = ('ce_flip', 'LS0_T4_flip', 'ce_rrc', 'LS0_T1_rrc', 'LS0_T4_rrc', 'ce_rrc_mix', 'LS0_T4_rrc_mix')
+PAIRS = {'LS0_T4_flip': 'ce_flip', 'LS0_T1_rrc': 'ce_rrc', 'LS0_T4_rrc': 'ce_rrc', 'LS0_T4_rrc_mix': 'ce_rrc_mix'}
 
 
 def recipe(name):
-    if name not in RUNS:
+    if name not in (*RUNS, 'T_LS0'):
         raise ValueError('Unknown Stage 1b run')
-    values = stage1_recipe(0, 'R1_ce').to_dict()
+    values = stage1_recipe(0, 'T_LS0' if name == 'T_LS0' else 'R1_ce').to_dict()
     values.update(output_root=str(OUTPUT), stage1_run=None, stage1b_run=name,
-                  train_augmentation='rrc_mix' if name.endswith('_mix') else 'rrc',
+                  train_augmentation='flip' if name == 'T_LS0' or name.endswith('_flip') else 'rrc_mix' if name.endswith('_mix') else 'rrc',
                   temperature=4. if '_T4' in name else 1.,
-                  teacher_checkpoint=None if name.startswith('ce_') else TEACHER)
+                  teacher_checkpoint=None if name == 'T_LS0' or name.startswith('ce_') else TEACHER)
     return Stage1bConfig(**values)
 
 
@@ -40,7 +39,7 @@ def read_config(name):
 
 
 def method(name):
-    return 'ce' if name.startswith('ce_') else 'full'
+    return 'teacher' if name == 'T_LS0' else 'ce' if name.startswith('ce_') else 'full'
 
 
 def run_dir(name):
@@ -50,7 +49,7 @@ def run_dir(name):
 def training_fingerprint():
     digest = hashlib.sha256(source_fingerprint().encode())
     paths = list((ROOT / 'coco_kd').glob('stage1b*.py'))
-    paths += [ROOT / 'scripts/plan_stage1b.py', ROOT / 'scripts/verify_stage1b_flip.py']
+    paths += [ROOT / 'scripts/plan_stage1b.py', ROOT / 'scripts/verify_stage1b_flip.py', ROOT / 'scripts/check_stage1b_teacher.py', ROOT / 'scripts/check_teacher_outputs.py']
     paths += list((ROOT / 'configs/stage1b').glob('*.json'))
     for path in sorted(paths):
         digest.update(str(path.relative_to(ROOT)).encode())
@@ -82,7 +81,7 @@ def require_tests():
 
 def require_flip_check():
     record = json.loads((OUTPUT / 'flip_verification.json').read_text())
-    if (record.get('status') != 'PASS' or record.get('scope') != 'server_a5000'
+    if (record.get('status') != 'PASS' or record.get('scope') != 'new_server'
             or record.get('validation_sha256') != validation_fingerprint()
             or record.get('initial_model_sha256') != INITIAL_SHA256):
         raise ValueError('Stage 1b flip equivalence check is required')
@@ -90,19 +89,37 @@ def require_flip_check():
         raise ValueError('Flip equivalence check must pass on this server')
 
 
-def check_assets():
-    return {'manifest_sha256': require_hash(Path('data/coco_single/manifest.json'), MANIFEST_SHA256),
-            'teacher_sha256': require_hash(TEACHER, TEACHER_SHA256)}
+def check_assets(require_teacher=True):
+    assets = {'manifest_sha256': require_hash(Path('data/coco_single/manifest.json'), MANIFEST_SHA256)}
+    if require_teacher:
+        assets['teacher_sha256'] = sha256(TEACHER)
+    return assets
+
+
+def require_teacher_checks():
+    from .stage1 import teacher_pass
+    record = json.loads((OUTPUT / 'teacher_checks.json').read_text())
+    assets = check_assets()
+    if (record.get('status') != 'PASS' or record.get('assets') != assets
+            or record.get('validation_sha256') != validation_fingerprint()
+            or record.get('runtime') != runtime()
+            or not teacher_pass('T_LS0', record['train']['kl_to_ls'])):
+        raise ValueError('New teacher output check missing, failed or checkpoint changed')
+    return record
+
 
 
 def validate_training_run(cfg, role, run_method):
     if (OUTPUT / 'STOP.json').exists():
         raise ValueError('Stage 1b STOP recorded; stop and ask before retry')
-    if cfg.to_dict() != read_config(cfg.stage1b_run).to_dict() or (role, run_method) != ('student', method(cfg.stage1b_run)):
+    expected_role = 'teacher' if cfg.stage1b_run == 'T_LS0' else 'student'
+    if cfg.to_dict() != read_config(cfg.stage1b_run).to_dict() or (role, run_method) != (expected_role, method(cfg.stage1b_run)):
         raise ValueError('Stage 1b config/role/method mismatch')
     require_tests()
-    require_flip_check()
-    check_assets()
+    check_assets(require_teacher=role != 'teacher')
+    if role == 'student':
+        require_teacher_checks()
+        require_flip_check()
 
 
 def read_baseline_rows():
@@ -125,7 +142,7 @@ def read_rows():
             continue
         result = json.loads((directory / 'result.json').read_text())
         expected = read_config(name).to_dict()
-        teacher_hash = None if method(name) == 'ce' else TEACHER_SHA256
+        teacher_hash = None if method(name) == 'ce' else require_teacher_checks()['assets']['teacher_sha256']
         if (result['config'] != expected or result['metadata_sha256'] != MANIFEST_SHA256
                 or result['code_sha256'] != training_fingerprint()
                 or result['teacher_sha256'] != teacher_hash or result['initial_model_sha256'] != INITIAL_SHA256
@@ -135,7 +152,7 @@ def read_rows():
         history = json.loads((directory / 'history.json').read_text())
         rows[name] = {'mean_pp': mean_last10(history), 'history': history}
     for kd, ce in PAIRS.items():
-        if kd in rows and ce in rows:
+        if kd in rows and ce in rows and not kd.endswith('_flip'):
             a, b = rows[kd]['history'], rows[ce]['history']
             if any(not x['train'].get('augmentation_sha256') or
                    x['train']['augmentation_sha256'] != y['train'].get('augmentation_sha256') for x, y in zip(a, b)):
@@ -156,20 +173,21 @@ def config_audit():
     lines = ['# Stage 1b config audit', '',
              '| run | augmentation | T | alpha | LS | LR | epochs | teacher SHA-256 |',
              '|---|---|---|---|---|---|---|---|']
-    for name in RUNS:
+    for name in ('T_LS0', *RUNS):
         cfg = read_config(name)
-        unused = method(name) == 'ce'
+        unused = method(name) in ('ce', 'teacher')
         temp = '1 (미사용)' if unused else str(cfg.temperature)
         alpha = '0.5 (미사용)' if unused else str(cfg.kd_alpha)
         digest = '미사용' if unused else sha256(TEACHER) if Path(TEACHER).is_file() else 'UNAVAILABLE'
-        lines.append(f'| {name} | {cfg.train_augmentation} | {temp} | {alpha} | {cfg.label_smoothing} | {cfg.scratch_lr} | {cfg.epochs} | {digest} |')
-    lines.extend(['', f'Teacher required SHA-256: `{TEACHER_SHA256}`.',
+        lines.append(f'| {name} | {cfg.train_augmentation} | {temp} | {alpha} | {cfg.teacher_label_smoothing if name == "T_LS0" else cfg.label_smoothing} | {cfg.teacher_lr if name == "T_LS0" else cfg.scratch_lr} | {cfg.teacher_epochs if name == "T_LS0" else cfg.epochs} | {digest} |')
+    lines.extend(['', f'Teacher: `{TEACHER}`; actual SHA-256 recorded and checked against its passing output-check record (no historical teacher hash).',
                   f'Manifest required SHA-256: `{MANIFEST_SHA256}`.',
+                  'Teacher: seed 0, ImageNet DeiT-S, LS=0, flip, 30 epochs, last.pt; train kl_to_ls >=0.02 required.',
                   'seed 0; scratch DeiT-Ti; batch 32 × accumulation 4; workers 0; threads 2; AMP; drop_path 0.1.',
                   'AdamW wd 0.05; warmup 5; cosine min 1e-6; grad clip 1.0; Probe off; test forbidden.',
                   'RRC: 224, scale (0.08, 1), ratio (3/4, 4/3), bicubic antialias=True; paired nearest mask; horizontal flip p=0.5.',
                   'Mix: batch mode, probability 1, mixup alpha 0.8 / cutmix alpha 1.0 selected 50/50, reverse-batch pairs, corrected area lambda.',
                   'CE soft targets contain LS=0.1 once; teacher sees the identical mixed image; mixed train accuracy is null.',
-                  'Each KD PASS iff delta against same-augmentation CE >=1.5 pp; all five runs finish; no seed 1.'])
+                  'Each KD PASS iff delta against same-augmentation CE >=1.5 pp; all seven runs finish; no seed 1.'])
     REPORT.mkdir(parents=True, exist_ok=True)
     (REPORT / 'CONFIG_AUDIT.md').write_text('\n'.join(lines) + '\n')

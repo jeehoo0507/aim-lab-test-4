@@ -1,3 +1,13 @@
+## Stage 1b 새 서버 지원
+
+- 로컬 검증: 전체 97개 테스트 통과. GPU 데이터 준비·teacher/student 학습은 서버에서 실행한다.
+
+- 기존 자산이 없는 새 서버에서 동일 Stage 1 prepare → test → 새 T_LS0 학습·출력 점검 → 7개 병렬 student → summary를 지원한다.
+- teacher는 seed 0 / LS 0 / flip / 30에포치 last.pt이며 학습 루프·레시피는 유지한다. 과거 고정 teacher SHA 대신 새 파일의 실제 SHA와 train kl_to_ls ≥0.02 점검 통과를 요구한다. 점검 후 파일 교체는 차단한다.
+- 초기 checksum 543d4714… 검사는 유지한다. 새 서버 2에포치 loss/val은 과거 기록과 차이 및 1e-6 일치 여부를 report-only로 기록한다. Mac CPU 동등성 기준과 분리한다.
+- ce_flip / LS0_T4_flip을 추가해 7개 병렬로 실행하고 같은 증강 CE 대비 +1.5pp 기준을 유지한다. 과거 flip 60.78 / 60.21은 재현 비교표에 보존한다.
+- README 최상단에 경로 하드코딩 없는 clone~실행 명령을 추가했다. uv가 없으면 클론 내부 unmanaged 설치를 사용한다. 기존 Stage 1 코드·config·보고서·uv.lock은 유지한다(공유 학습 루프의 teacher/student 초기 해시 검사 대상만 분리).
+
 # Changelog
 
 ## 2026-10-03 — Stage 1b RRC / mixup

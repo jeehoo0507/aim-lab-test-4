@@ -1,6 +1,11 @@
 {
   "decision": "WAIT_RUNS",
   "runs": {
+    "LS0_T4_flip": {
+      "baseline": "ce_flip",
+      "delta_pp": null,
+      "status": "NOT_RUN"
+    },
     "LS0_T1_rrc": {
       "baseline": "ce_rrc",
       "delta_pp": null,

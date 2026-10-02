@@ -140,3 +140,15 @@ GPU 실험을 실행할 서버/접속 방법, 준비 COCO-10 디렉터리, 실�
 - 서버(A5000): 새 flip R1_ce 경로만 2에포치 실행한다. 초기 checksum은 기존 `543d4714549b4a1318384fd102ebcfc4b65a0ccf73da68d63e1507d15e5a4e8a`와 정확히 일치해야 한다. epoch 1·2의 train loss와 val macro는 보존된 Stage 1 history와 절대 오차 1e-6 이내여야 한다.
 - 서버 게이트 실패 시 Stage 1b 다섯 run은 시작하지 않고 STOP을 기록한다. 기준 해시·학습 설정은 변경하지 않는다.
 - CPU 동등성 기록(`scope=same_platform_cpu`)과 서버 게이트 기록(`scope=server_a5000`)을 별도 파일에 저장하며 CPU 통과 기록은 서버 실행 허가에 사용하지 않는다. 앞의 서버 원본·새 코드 각각 2에포치 실행 제안은 이 승인 내용으로 대체한다.
+
+## 새 서버 변경 — 사용자 승인 사양
+
+1. 기존 Stage 1 준비 함수를 재사용하고 원본/manifest 해시 검사를 유지한다.
+2. 공유 학습 루프로 새 LS0 teacher를 Stage 1 레시피대로 학습하고 last.pt를 점검한다.
+3. teacher 고정 해시를 제거하고 실제 SHA + train KL 통과 기록으로 결합한다.
+4. 초기 checksum은 엄격 유지하고 새 서버 2에포치 loss/val 차이는 보고만 한다.
+5. flip CE/KD 쌍을 더한 7개를 병렬 실행하며 같은 증강 CE 대비 +1.5pp로 판정한다.
+6. 각 단계 STOP·7개 동시 시작·teacher 교체 감지·보고 전용 비교를 테스트한다.
+7. README·runbook을 새 서버 clone부터 실행까지 상대 경로로 갱신한다.
+
+최신 사용자 지시로 승인된 변경이다. 새 서버용 런처에서 report-only를 명시하고, 결과를 보고 설정을 바꾸지 않는다.

@@ -49,6 +49,6 @@
   "teacher_checkpoint": null,
   "probe_enabled": false,
   "stage1_run": null,
-  "stage1b_run": "ce_rrc_mix",
-  "train_augmentation": "rrc_mix"
+  "train_augmentation": "rrc_mix",
+  "stage1b_run": "ce_rrc_mix"
 }

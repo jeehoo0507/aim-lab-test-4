@@ -217,7 +217,7 @@ def _train(cfg, role, method, directory, stop_after):
         from .stage1 import INITIAL_SHA256
         if initial_hash != INITIAL_SHA256:
             raise ValueError(f"Stage 1 initial_model_sha256 mismatch: {initial_hash}")
-    if getattr(cfg, "stage1b_run", None):
+    if role == "student" and getattr(cfg, "stage1b_run", None):
         from .stage1 import INITIAL_SHA256
         if initial_hash != INITIAL_SHA256:
             raise ValueError(f"Stage 1b initial_model_sha256 mismatch: {initial_hash}")

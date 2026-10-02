@@ -49,6 +49,6 @@
   "teacher_checkpoint": "outputs/stage1b_aug/seed_0/T_LS0/last.pt",
   "probe_enabled": false,
   "stage1_run": null,
-  "train_augmentation": "rrc_mix",
-  "stage1b_run": "LS0_T4_rrc_mix"
+  "train_augmentation": "flip",
+  "stage1b_run": "LS0_T4_flip"
 }

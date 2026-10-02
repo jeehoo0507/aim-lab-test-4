@@ -46,9 +46,9 @@
   "grad_clip": 1.0,
   "model_scale": "deit",
   "max_train_batches": null,
-  "teacher_checkpoint": "outputs/stage1_ls_gate/seed_0/T_LS0/last.pt",
+  "teacher_checkpoint": "outputs/stage1b_aug/seed_0/T_LS0/last.pt",
   "probe_enabled": false,
   "stage1_run": null,
-  "stage1b_run": "LS0_T1_rrc",
-  "train_augmentation": "rrc"
+  "train_augmentation": "rrc",
+  "stage1b_run": "LS0_T1_rrc"
 }

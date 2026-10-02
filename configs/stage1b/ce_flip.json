@@ -21,7 +21,7 @@
   "drop_path": 0.1,
   "label_smoothing": 0.1,
   "kd_alpha": 0.5,
-  "temperature": 4.0,
+  "temperature": 1.0,
   "keep_tokens": 98,
   "foreground_threshold": 0.5,
   "checkpoint_every": 50,
@@ -46,9 +46,9 @@
   "grad_clip": 1.0,
   "model_scale": "deit",
   "max_train_batches": null,
-  "teacher_checkpoint": "outputs/stage1b_aug/seed_0/T_LS0/last.pt",
+  "teacher_checkpoint": null,
   "probe_enabled": false,
   "stage1_run": null,
-  "train_augmentation": "rrc_mix",
-  "stage1b_run": "LS0_T4_rrc_mix"
+  "train_augmentation": "flip",
+  "stage1b_run": "ce_flip"
 }

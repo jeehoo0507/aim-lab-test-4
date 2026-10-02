@@ -8,8 +8,8 @@
   },
   "config": {
     "teacher_label_smoothing": 0.0,
-    "data_root": "/Users/choejihu/Documents/ChatGPT/aim lab test 4/aim-lab-test-2/.cache/tmp/pytest-of-choejihu/pytest-6/test_flip_matches_pinned_stage0/data",
-    "output_root": "/Users/choejihu/Documents/ChatGPT/aim lab test 4/aim-lab-test-2/.cache/tmp/pytest-of-choejihu/pytest-6/test_flip_matches_pinned_stage0/out",
+    "data_root": "/Users/choejihu/Documents/ChatGPT/aim lab test 4/aim-lab-test-2/.cache/tmp/pytest-of-choejihu/pytest-7/test_flip_matches_pinned_stage0/data",
+    "output_root": "/Users/choejihu/Documents/ChatGPT/aim lab test 4/aim-lab-test-2/.cache/tmp/pytest-of-choejihu/pytest-7/test_flip_matches_pinned_stage0/out",
     "device": "cpu",
     "num_classes": 10,
     "batch_size": 2,
