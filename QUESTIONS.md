@@ -79,3 +79,43 @@ GPU 실험을 실행할 서버/접속 방법, 준비 COCO-10 디렉터리, 실�
 - 과거 teacher의 고정 SHA-256 검사는 제거한다. `R2_full_old_T1`을 `R2_full_LS01best_T1`로 바꾸고 seed 0의 새 `T_LS01/best.pt`를 T=1로 사용한다.
 - R2는 T_LS01 학습 이후 실행한다. teacher 출력 점검의 세 번째 행은 새 `T_LS01_best`로 대체한다. 기존 두 last teacher의 KL 판정과 best 행의 보고 전용 성격은 유지한다.
 - R1은 동일하며 R2의 회귀 기준 58.91 ±2.0%p, 초기 checksum, 다른 판정·임계값·설정은 유지한다. 원문 프로토콜은 기록으로 보존한다.
+
+## Stage 1b 사전 계획 — RRC / mixup (2026-10-03)
+
+상태: 최신 Stage 1 결과 커밋 `c5a826d` 확인. 아래 두 항목 답변 전 구현 코드를 작성하지 않는다. 기존 요청의 사전 계획 제출·사용자 답변 후 구현 규칙을 따른다. 로컬 구현·테스트 및 서버 명령 작성 범위는 유지한다.
+
+### 구현 계획 (12줄)
+
+1. Stage 1 소스·config·테스트·프로토콜·보고서·outputs 및 uv.lock을 보존하고 Stage 1b 전용 파일을 추가한다.
+2. Stage 1b config에서 train_augmentation을 기본값 없이 JSON 필수로 검증하고 flip/rrc/rrc_mix만 허용한다.
+3. 고정 다섯 seed 0 config를 생성하고 Stage 1 student 레시피(100 epochs, workers 0, threads 2, Probe off)를 유지한다.
+4. RRC 크기·비율·flip을 이미지와 foreground mask에 동일 적용하고 mask는 nearest, val/probe는 기존 resize로 유지한다.
+5. 증강 RNG를 모델 RNG와 분리하여 동일 seed·epoch·샘플에 동일 crop, 동일 batch에 동일 mix 종류·lambda·짝·CutMix 박스를 사용한다.
+6. rrc_mix는 timm batch 방식의 역순 짝, Beta(0.8,0.8)/Beta(1,1), 50% 선택, 적용 확률 1, CutMix 실제 면적 lambda 보정을 사용한다.
+7. 이미 smoothing된 혼합 target에 soft-label CE를 적용하고 teacher/student에 동일 혼합 텐서를 전달하며 mixed train accuracy는 기록하지 않는다.
+8. 기존 T_LS0/last.pt를 읽기만 하고 업로드된 SHA-256 및 manifest 해시를 실행 전·각 run에서 검증하고 기록한다.
+9. 독립 runner로 다섯 student를 동시에 실행하고 OOM/학습 오류 시 중단하며 학습 완료 후 세 KD 조건을 각 증강 CE와 비교한다.
+10. 증강 일치·run 간 재현성·soft CE·teacher 입력 일치·flip 동작 불변·판정 테스트와 기존 테스트를 수행한다.
+11. reports/stage1b/에 기존 flip 결과와 새 결과 비교표, run별 PASS/FAIL, 새 다섯 val 곡선을 결과 JSON에서 생성한다.
+12. 클론 내부 uv 격리를 유지하는 실행 안내와 결과 업로드 명령을 제공하며 다섯 run 종료 후 끝낸다(seed 1/test/자동 후속 실행 없음).
+
+### B1. 기존 Stage 1 보존과 새 필수 config 범위
+
+제안 A: 기존 Config와 setup.sh를 변경하지 않고 Stage 1b 전용 config 클래스·학습 모듈·`setup_stage1b.sh`를 추가한다. `train_augmentation`은 Stage 1b JSON에만 필수이며 Stage 1은 기존 JSON 그대로 동작한다. 기존 모델·optimizer·LR·평가 함수는 읽기 전용 재사용한다. 기존 lockfile에 timm이 없으므로 새 의존성 없이 timm batch Mixup 동작을 참조 구현하고 출처를 기록한다.
+
+대안 B: 공통 config·setup.sh의 최소 확장을 허용한다. 이 경우 "기존 Stage 1 코드 수정 금지"의 예외 범위를 먼저 확정해야 한다.
+
+### B2. RRC 이미지 보간
+
+- A (제안): 기존 이미지 resize와 같은 bicubic + antialias=True. crop 정책만 바꾼다.
+- B: torchvision RandomResizedCrop 기본인 bilinear + antialias=True.
+- 두 경우 모두 foreground mask는 동일 crop·flip + nearest, val/probe는 기존 bicubic 전체 resize다.
+
+### 확인한 고정 자산과 판정
+
+- 데이터: `data/coco_single`; manifest SHA-256 `ffbd7a44425184e36efc3f51821cb1fb7126d5fea1dbfeaf0c3229a90528e62e`.
+- Teacher: `outputs/stage1_ls_gate/seed_0/T_LS0/last.pt`; SHA-256 `6e31acca311a19b307a722008ef6c7f65259445ec04217f7d86f8486faf293d6` (Stage 1 업로드 기록에서 확인; 로컬 가중치는 없음).
+- 출력: `outputs/stage1b_aug/`; 보고서: `reports/stage1b/`.
+- 각 KD run은 같은 증강 CE 대비 val macro 91–100 평균 차이가 1.5pp 이상이면 PASS. CE 행은 기준이며 PASS/FAIL 대상이 아니다. Stage 1의 회귀 수치·STOP을 Stage 1b 중단 기준으로 재사용하지 않는다.
+- Full KD이며 teacher는 재학습하지 않는다. RRC로 foreground가 잘려도 임의 crop 재추첨·필터링을 하지 않는다.
+- timm 참조: https://github.com/huggingface/pytorch-image-models/blob/main/timm/data/mixup.py (구현 시 고정 revision으로 출처 기록).
